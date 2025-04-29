@@ -1,0 +1,199 @@
+<?xml version="1.0"?>
+<sdf version="1.10">
+    <world name="localization_world">
+
+        <physics name="1ms" type="ignored">
+            <max_step_size>0.001</max_step_size>
+            <real_time_factor>1.0</real_time_factor>
+        </physics>
+        <plugin
+            filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics">
+        </plugin>
+        <plugin
+            filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands">
+        </plugin>
+        <plugin
+            filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster">
+        </plugin>
+
+        <light type="directional" name="太陽">
+            <cast_shadows>true</cast_shadows>
+            <pose>0 0 10 0 0 0</pose>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <attenuation>
+                <range>1000</range>
+                <constant>0.9</constant>
+                <linear>0.01</linear>
+                <quadratic>0.001</quadratic>
+            </attenuation>
+            <direction>-0.5 0.1 -0.9</direction>
+        </light>
+
+        <model name="大いなる大地">
+            <static>true</static>
+            <link name="地面">
+                <collision name="当たり判定">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 1</normal>
+                        </plane>
+                    </geometry>
+                </collision>
+                <visual name="見た目">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 1</normal>
+                            <size>100 100</size>
+                        </plane>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.6 0.6 1</ambient>
+                        <diffuse>0.0 0.6 0.6 1</diffuse>
+                        <specular>0.8 0.8 0.8 1</specular>
+                    </material>
+                </visual>
+            </link>
+        </model>
+        <model name="壁">
+
+            <static>true</static>
+
+            <link name="上の壁">
+                <pose>10.725 0.0 0.075 0 0 1.57075</pose> <!-- poseはlinkの直下に配置 -->
+                <collision name="collision">
+                    <geometry>
+                        <box>
+                            <size>10.8 0.15 0.15</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>10.8 0.15 0.15</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.4 0.2 0.05 1</ambient>
+                        <diffuse>0.4 0.2 0.05 1</diffuse>
+                        <specular>0.1 0.1 0.1 1</specular>
+                    </material>
+                </visual>
+            </link>
+            <link name="下の壁">
+                <pose>0.075 0.0 0.075 0 0 1.57075</pose> <!-- poseはlinkの直下に配置 -->
+                <collision name="collision">
+                    <geometry>
+                        <box>
+                            <size>10.8 0.15 0.15</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>10.8 0.15 0.15</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.4 0.2 0.05 1</ambient>
+                        <diffuse>0.4 0.2 0.05 1</diffuse>
+                        <specular>0.1 0.1 0.1 1</specular>
+                    </material>
+                </visual>
+            </link>
+            <link name="右の壁">
+                <pose> 5.4 -5.325 0.075 0 0 0</pose>
+                <collision name="collision">
+                    <geometry>
+                        <box>
+                            <size>10.8 0.15 0.15</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>10.8 0.15 0.15</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.4 0.2 0.05 1</ambient>
+                        <diffuse>0.4 0.2 0.05 1</diffuse>
+                        <specular>0.1 0.1 0.1 1</specular>
+                    </material>
+                </visual>
+            </link>
+            <link name="左の壁">
+                <pose> 5.4 5.325 0.075 0 0 0</pose>
+                <collision name="collision">
+                    <geometry>
+                        <box>
+                            <size>10.8 0.15 0.15</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>10.8 0.15 0.15</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.4 0.2 0.05 1</ambient>
+                        <diffuse>0.4 0.2 0.05 1</diffuse>
+                        <specular>0.1 0.1 0.1 1</specular>
+                    </material>
+                </visual>
+            </link>
+            <link name="45mm角材">
+                <pose>3.55 0.0 0.0225 0.0 0.0 0.0</pose>
+                <collision name="collision">
+                    <geometry>
+                        <box>
+                            <size>6.8 0.045 0.045</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>6.8 0.045 0.045</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.7 0.7 0.7 1</ambient>
+                        <diffuse>0.7 0.7 0.7 1</diffuse>
+                        <specular>0.7 0.7 0.7 1</specular>
+                    </material>
+                </visual>
+            </link>
+            <link name="台">
+                <pose>8.8 0.0 0.07 0.0 0.0 1.57075</pose>
+                <collision name="collision">
+                    <geometry>
+                        <box>
+                            <size>0.45 3.7 0.14</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>0.45 3.7 0.14</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.7 0.7 0.7 1</ambient>
+                        <diffuse>0.7 0.7 0.7 1</diffuse>
+                        <specular>0.7 0.7 0.7 1</specular>
+                    </material>
+                </visual>
+            </link>
+        </model>
+    </world>
+</sdf>
