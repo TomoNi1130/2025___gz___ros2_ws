@@ -120,7 +120,7 @@ def generate_launch_description():
     )
     
     find_corner = TimerAction(
-        period=1.5,  # 遅延時間（秒）
+        period=3.5,  # 遅延時間（秒）
         actions=[
             Node(
             package="points_processes",

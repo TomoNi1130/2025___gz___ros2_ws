@@ -55,11 +55,11 @@ struct LineSeg
 
 struct corner
 {
-    Eigen::Vector2d pos;
-    Eigen::Vector2d dir;
-    corner() : pos(Eigen::Vector2d(0, 0)), dir(Eigen::Vector2d(0, 0)) {}
-    corner(const Eigen::Vector2d &position) : pos(position), dir(Eigen::Vector2d(0, 0)) {}
-    corner(const Eigen::Vector2d &position, Eigen::Vector2d &direction) : pos(position), dir(direction) {}
+    Eigen::Vector2d robot_look_pos;
+    double distance_to_robot;
+    corner() : robot_look_pos(Eigen::Vector2d(0, 0)), distance_to_robot(0.0) {}
+    corner(const Eigen::Vector2d &position) : robot_look_pos(position), distance_to_robot(0.0) {}
+    corner(const Eigen::Vector2d &position, const double distance) : robot_look_pos(position), distance_to_robot(distance) {}
 };
 
 struct general_line
@@ -78,7 +78,7 @@ struct general_line
 class RANSAC
 {
 public:
-    RANSAC(const double threshold, const double gap_threshold, rclcpp::Logger logger) : max_iterations(0), distance_threshold(threshold), gap_threshold(gap_threshold), logger(logger) {}
+    RANSAC(const double threshold, const double gap_threshold, rclcpp::Logger logger) : max_iterations(200), distance_threshold(threshold), gap_threshold(gap_threshold), logger(logger) {}
     RANSAC(const int iteration, const double threshold, const double gap_threshold, rclcpp::Logger logger) : max_iterations(iteration), distance_threshold(threshold), gap_threshold(gap_threshold), logger(logger) {}
 
     std::optional<std::vector<LineSeg>> do_ransac(const sensor_msgs::msg::PointCloud &msg_points, const int max_line_num)
@@ -126,7 +126,6 @@ public:
                 }
                 else
                 {
-                    RCLCPP_INFO(logger, "%d", return_line_segments.size());
                     return return_line_segments;
                 }
             }
@@ -160,7 +159,6 @@ private:
             DistanceAndIDs(double distance, int id) : distance(distance), id(id) {}
             DistanceAndIDs() : distance(0.0), id(-1) {}
         };
-        // RCLCPP_INFO(logger, "1:");
         std::vector<bool> guess_guess_inliers(points_cloud.size(), false);
         std::vector<bool> line_seg_inliers(points_cloud.size(), false);
         int guess_inlier_count = 0;
@@ -185,7 +183,7 @@ private:
             bool gap = false;
             for (int i = 0; i < distance_and_ids.size() - 1; i++)
             {
-                if (abs(distance_and_ids[i + 1].distance - distance_and_ids[i].distance) > 1.0)
+                if (abs(distance_and_ids[i + 1].distance - distance_and_ids[i].distance) > gap_threshold)
                 {
                     guess_line_seg.line.pos = points_cloud[distance_and_ids[i].id].point;
                     gap = true;
@@ -212,7 +210,7 @@ private:
                 gap = false;
                 for (int i = 0; i < distance_and_ids_from_termination_point.size() - 1; i++)
                 {
-                    if (abs(distance_and_ids_from_termination_point[i + 1].distance - distance_and_ids_from_termination_point[i].distance) > 1.0)
+                    if (abs(distance_and_ids_from_termination_point[i + 1].distance - distance_and_ids_from_termination_point[i].distance) > gap_threshold)
                     {
                         guess_line_seg.line.dir = points_cloud[distance_and_ids_from_termination_point[i].id].point - guess_line_seg.line.pos;
                         guess_line_seg.length = guess_line_seg.line.dir.norm();
@@ -263,24 +261,61 @@ private:
     void visualize_line_segments(std::vector<LineSeg> &lines, const std_msgs::msg::Header &header);
 
     // 処理系
+    std::vector<corner> find_corner(std::vector<LineSeg> line_segments) // 線分の両端をコーナーとしていくつかのコーナーにまとめる。
+    {
+        std::vector<corner> known_corners;
+        for (int i = 0; i < line_segments.size(); i++)
+        {
+            RCLCPP_INFO(this->get_logger(), "a");
+            geometry_msgs::msg::Point p1, p2;
+            line_segments[i].return_points(p1, p2);
+            Eigen::Vector2d p1_v(p1.x, p1.y), p2_v(p2.x, p2.y);
+            bool new_corner_1 = true;
+            bool new_corner_2 = true;
+            RCLCPP_INFO(this->get_logger(), "b:%d", known_corners.size());
+            for (int j = 0; j < known_corners.size(); j++)
+            {
+                // RCLCPP_INFO(this->get_logger(), "d");
+                if ((known_corners[j].robot_look_pos - p1_v).norm() < 0.3)
+                {
+                    known_corners[j].robot_look_pos = (known_corners[j].robot_look_pos + p1_v) / 2.0;
+                    known_corners[j].distance_to_robot = known_corners[j].distance_to_robot + p1_v.norm();
+                    new_corner_1 = false;
+                }
+                // RCLCPP_INFO(this->get_logger(), "e");
+                if ((known_corners[j].robot_look_pos - p2_v).norm() < 0.3)
+                {
+                    known_corners[j].robot_look_pos = (known_corners[j].robot_look_pos + p2_v) / 2.0;
+                    known_corners[j].distance_to_robot = known_corners[j].distance_to_robot + p2_v.norm();
+                    new_corner_2 = false;
+                }
+            }
+            RCLCPP_INFO(this->get_logger(), "c");
+            if (new_corner_1)
+            {
+                known_corners.push_back(corner(p1_v, p1_v.norm()));
+            }
+            if (new_corner_2)
+            {
+                known_corners.push_back(corner(p2_v, p2_v.norm()));
+            }
+        }
+        RCLCPP_INFO(this->get_logger(), "%d", known_corners.size());
+        return known_corners;
+    }
+
     void topicCallback(const sensor_msgs::msg::PointCloud &msg)
     {
-        RCLCPP_INFO(this->get_logger(), "----------------------");
         std::optional<std::vector<LineSeg>> ransac_lines = ransac.do_ransac(msg, 5);
         if (ransac_lines.has_value())
         {
             visualize_line_segments(ransac_lines.value(), msg.header);
-            std::vector<corner> corners;
-            // corners.push_back(corner(ransac_lines.value()[0].line.pos));
-            // visualize_corner(corners, msg.header);
-        }
-        else
-        {
-            RCLCPP_INFO(this->get_logger(), "aaaaaaaa");
+            std::vector<corner> corners = find_corner(ransac_lines.value());
+            visualize_corner(corners, msg.header);
         }
     }
     rclcpp::Subscription<sensor_msgs::msg::PointCloud>::SharedPtr subscription_;
-    RANSAC ransac{0.015, 2.0, this->get_logger()};
+    RANSAC ransac{0.02, 2.0, this->get_logger()};
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr corner_print;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
 };
@@ -311,8 +346,8 @@ void CornerFinder::visualize_corner(std::vector<corner> &corner_points, const st
     for (const auto &point : corner_points)
     {
         geometry_msgs::msg::Point print_point;
-        print_point.x = point.pos.x();
-        print_point.y = point.pos.y();
+        print_point.x = point.robot_look_pos.x();
+        print_point.y = point.robot_look_pos.y();
         print_point.z = 0.0;
         marker.points.push_back(print_point);
     }
