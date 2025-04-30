@@ -142,6 +142,6 @@ def generate_launch_description():
         controller_conection,
         controller_run,
         points_integration,
-        # find_corner,
+        find_corner,
         ]
     )

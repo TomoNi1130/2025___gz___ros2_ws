@@ -1,0 +1,9 @@
+BasedOnStyle: Google
+BraceWrapping:
+  AfterControlStatement: true
+BreakBeforeBinaryOperators: None
+ColumnLimit: 0
+PenaltyBreakBeforeFirstCallParameter: 1000
+PenaltyBreakString: 1000
+PenaltyBreakAssignment: 1000
+IndentWidth: 2
