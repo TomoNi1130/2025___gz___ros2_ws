@@ -12,6 +12,7 @@ find_package(rclcpp REQUIRED)
 install(DIRECTORY
   launch
   world
+  config
   DESTINATION share/${PROJECT_NAME}
 )
 

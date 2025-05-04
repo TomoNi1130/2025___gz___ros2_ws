@@ -30,6 +30,7 @@ def generate_launch_description():
         executable="rviz2",
         name="rviz2",
         output="screen",
+        arguments=["-d", os.path.join(bringup_dir, "config", "2025_rviz2_config.rviz")],
     )
 
     gz_sim = ExecuteProcess(
@@ -56,6 +57,8 @@ def generate_launch_description():
             "4.75",
             "-z",
             "0.3",
+            #  "-Y",
+            # "3.1415",
         ],
         parameters=[{"use_sim_time": use_sim_time}],
     )
@@ -120,11 +123,21 @@ def generate_launch_description():
     )
     
     find_corner = TimerAction(
-        period=3.5,  # 遅延時間（秒）
+        period=2.0,  # 遅延時間（秒）
         actions=[
             Node(
             package="points_processes",
             executable="corner_finder",
+            )
+        ]
+    )
+
+    localization = TimerAction(
+        period=3.5,  # 遅延時間（秒）
+        actions=[
+            Node(
+            package="localization",
+            executable="main",
             )
         ]
     )
@@ -143,5 +156,6 @@ def generate_launch_description():
         controller_run,
         points_integration,
         find_corner,
+        localization,
         ]
     )

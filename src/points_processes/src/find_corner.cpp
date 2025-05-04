@@ -22,8 +22,8 @@ struct Line {
   Line() : pos(Eigen::Vector2d(0, 0)), dir(Eigen::Vector2d(1, 0)) {}
   Line(const Eigen::Vector2d &position, const Eigen::Vector2d &direction) : pos(position), dir(direction) {}
 
-  static Line from_points(Eigen::Vector2d a, Eigen::Vector2d b) { return Line{a, (b - a).normalized()}; }
-  double distance_to(Eigen::Vector2d point) const {
+  static Line from_points(Eigen::Vector2d &a, Eigen::Vector2d &b) { return Line{a, (b - a).normalized()}; }
+  double distance_to(Eigen::Vector2d &point) const {
     Eigen::Vector2d v = point - pos;
     double cross = dir.x() * v.y() - dir.y() * v.x();
     return std::abs(cross);
@@ -50,18 +50,18 @@ struct LineSeg {
   }
 };
 
-struct corner {
+struct Corner {
   Eigen::Vector2d robot_look_pos;
   double distance_to_robot;
-  corner() : robot_look_pos(Eigen::Vector2d(0, 0)), distance_to_robot(0.0) {}
-  corner(const Eigen::Vector2d &position) : robot_look_pos(position), distance_to_robot(0.0) {}
-  corner(const Eigen::Vector2d &position, const double distance) : robot_look_pos(position), distance_to_robot(distance) {}
+  Corner() : robot_look_pos(Eigen::Vector2d(0, 0)), distance_to_robot(0.0) {}
+  Corner(const Eigen::Vector2d &position) : robot_look_pos(position), distance_to_robot(0.0) {}
+  Corner(const Eigen::Vector2d &position, const double distance) : robot_look_pos(position), distance_to_robot(distance) {}
 };
 
-struct general_line {
+struct GeneralLine {
   double a, b, c;
-  general_line(double a, double b, double c) : a(a), b(b), c(c) {}
-  general_line to_general_line(const Line &line) {
+  GeneralLine(double &a, double &b, double &c) : a(a), b(b), c(c) {}
+  GeneralLine to_GeneralLine(const Line &line) {
     double A = line.dir.y();
     double B = -line.dir.x();
     double C = line.dir.y() * line.pos.x() - line.dir.x() * line.pos.y();
@@ -88,7 +88,8 @@ class RANSAC {
           std::uniform_int_distribution<int> dis(0, points_cloud.size() - 1);
           int guess_1 = dis(gen);
           int guess_2 = dis(gen);
-          while (guess_1 == guess_2) {
+          while (guess_1 == guess_2 || points_cloud[guess_1].is_inlier || points_cloud[guess_2].is_inlier) {
+            guess_1 = dis(gen);
             guess_2 = dis(gen);
           }
           Line guess_line = guess_line.from_points(points_cloud[guess_1].point, points_cloud[guess_2].point);
@@ -213,7 +214,7 @@ class CornerFinder : public rclcpp::Node {
       : Node("CornerFinder") {
     subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud>(
         "lidar_points", 10, std::bind(&CornerFinder::topicCallback, this, std::placeholders::_1));
-    corners_publisher_ = this->create_publisher<interface_pkg::msg::Corners>("corners_position", 10);
+    corners_publisher_ = this->create_publisher<interface_pkg::msg::Corners>("ransac_corners_position", 10);
     corner_print = this->create_publisher<visualization_msgs::msg::Marker>("corners_position", 10);
     marker_print = this->create_publisher<visualization_msgs::msg::Marker>("lines_position", 10);
     RCLCPP_INFO(this->get_logger(), "CornerFinder setup!!");
@@ -221,13 +222,13 @@ class CornerFinder : public rclcpp::Node {
 
  private:
   // 可視化系
-  void visualize_corner(std::vector<corner> &corner_points, const std_msgs::msg::Header &header);
+  void visualize_corner(std::vector<Corner> &corner_points, const std_msgs::msg::Header &header);
   void visualize_line_segments(std::vector<LineSeg> &lines, const std_msgs::msg::Header &header);
 
   // 処理系
-  std::vector<corner> find_corner(std::vector<LineSeg> line_segments)  // 線分の両端をコーナーとしていくつかのコーナーにまとめる。
+  std::vector<Corner> find_corner(std::vector<LineSeg> line_segments)  // 線分の両端をコーナーとしていくつかのコーナーにまとめる。
   {
-    std::vector<corner> known_corners;
+    std::vector<Corner> known_corners;
     for (int i = 0; i < line_segments.size(); i++) {
       geometry_msgs::msg::Point p1, p2;
       line_segments[i].return_points(p1, p2);
@@ -235,22 +236,22 @@ class CornerFinder : public rclcpp::Node {
       bool new_corner_1 = true;
       bool new_corner_2 = true;
       for (int j = 0; j < known_corners.size(); j++) {
-        if ((known_corners[j].robot_look_pos - p1_v).norm() < 0.3) {
+        if ((known_corners[j].robot_look_pos - p1_v).norm() < 0.1) {
           known_corners[j].robot_look_pos = (known_corners[j].robot_look_pos + p1_v) / 2.0;
-          known_corners[j].distance_to_robot = known_corners[j].distance_to_robot + p1_v.norm();
+          known_corners[j].distance_to_robot = p1_v.norm();
           new_corner_1 = false;
         }
-        if ((known_corners[j].robot_look_pos - p2_v).norm() < 0.3) {
+        if ((known_corners[j].robot_look_pos - p2_v).norm() < 0.1) {
           known_corners[j].robot_look_pos = (known_corners[j].robot_look_pos + p2_v) / 2.0;
-          known_corners[j].distance_to_robot = known_corners[j].distance_to_robot + p2_v.norm();
+          known_corners[j].distance_to_robot = p2_v.norm();
           new_corner_2 = false;
         }
       }
       if (new_corner_1) {
-        known_corners.push_back(corner(p1_v, p1_v.norm()));
+        known_corners.push_back(Corner(p1_v, p1_v.norm()));
       }
       if (new_corner_2) {
-        known_corners.push_back(corner(p2_v, p2_v.norm()));
+        known_corners.push_back(Corner(p2_v, p2_v.norm()));
       }
     }
     return known_corners;
@@ -260,22 +261,29 @@ class CornerFinder : public rclcpp::Node {
     std::optional<std::vector<LineSeg>> ransac_lines = ransac.do_ransac(msg, 5);
     if (ransac_lines.has_value()) {
       visualize_line_segments(ransac_lines.value(), msg.header);
-      std::vector<corner> corners = find_corner(ransac_lines.value());
+      std::vector<Corner> corners = find_corner(ransac_lines.value());
       interface_pkg::msg::Corners pub_corners;
+      std::vector<double> x;
+      std::vector<double> y;
+      std::vector<double> distance;
       for (int i = 0; i < corners.size(); i++) {
-        pub_corners.x[i] = corners[i].robot_look_pos.x();
-        pub_corners.y[i] = corners[i].robot_look_pos.y();
-        pub_corners.distance[i] = corners[i].distance_to_robot;
+        x.push_back(corners[i].robot_look_pos.x());
+        y.push_back(corners[i].robot_look_pos.y());
+        distance.push_back(corners[i].distance_to_robot);
       }
+      pub_corners.x = x;
+      pub_corners.y = y;
+      pub_corners.distance = distance;
       visualize_corner(corners, msg.header);
-      corners_publisher_->publish(pub_corners)
+      corners_publisher_->publish(pub_corners);
     }
   }
   rclcpp::Subscription<sensor_msgs::msg::PointCloud>::SharedPtr subscription_;
   rclcpp::Publisher<interface_pkg::msg::Corners>::SharedPtr corners_publisher_;
-  RANSAC ransac{0.02, 2.0, this->get_logger()};
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr corner_print;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
+
+  RANSAC ransac{250, 0.020, 3.0, this->get_logger()};
 };
 
 int main(int argc, char **argv) {
@@ -285,7 +293,7 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void CornerFinder::visualize_corner(std::vector<corner> &corner_points, const std_msgs::msg::Header &header) {
+void CornerFinder::visualize_corner(std::vector<Corner> &corner_points, const std_msgs::msg::Header &header) {
   visualization_msgs::msg::Marker marker;
   marker.header = header;
   marker.ns = "corner_points";
@@ -301,8 +309,8 @@ void CornerFinder::visualize_corner(std::vector<corner> &corner_points, const st
   marker.color.a = 1.0;  // Don't forget to set the alpha!
   for (const auto &point : corner_points) {
     geometry_msgs::msg::Point print_point;
-    print_point.x = point.robot_look_pos.x();
-    print_point.y = point.robot_look_pos.y();
+    print_point.x = point.distance_to_robot * cos(atan2(point.robot_look_pos.y(), point.robot_look_pos.x()));
+    print_point.y = point.distance_to_robot * sin(atan2(point.robot_look_pos.y(), point.robot_look_pos.x()));
     print_point.z = 0.0;
     marker.points.push_back(print_point);
   }
