@@ -64,7 +64,7 @@
         <child link="FL_wheel" />
         <axis xyz="0 0 1" />
         <origin xyz="0.25 0.25 0.0" rpy="1.571 0 2.356125" />
-        <limit effort="2000" velocity="80.0" lower="-1000000000000" upper="1000000000000" />
+        <limit effort="2000" velocity="20.0" lower="-1000000000000" upper="1000000000000" />
     </joint>
     <gazebo>
         <plugin
@@ -109,7 +109,7 @@
         <child link="BL_wheel" />
         <axis xyz="0 0 1" />
         <origin xyz="-0.25 0.25 0.0" rpy="1.571 0 -2.356125" />
-        <limit effort="2000" velocity="80.0" lower="-1000000000000" upper="1000000000000" />
+        <limit effort="2000" velocity="20.0" lower="-1000000000000" upper="1000000000000" />
     </joint>
     <gazebo>
         <plugin
@@ -154,7 +154,7 @@
         <child link="BR_wheel" />
         <axis xyz="0 0 1" />
         <origin xyz="-0.25 -0.25 0.0" rpy="1.571 0 -0.785375" />
-        <limit effort="2000" velocity="80.0" lower="-1000000000000" upper="1000000000000" />
+        <limit effort="2000" velocity="20.0" lower="-1000000000000" upper="1000000000000" />
     </joint>
     <gazebo>
         <plugin
@@ -199,7 +199,7 @@
         <child link="FR_wheel" />
         <axis xyz="0 0 1" />
         <origin xyz="0.25 -0.25 0.0" rpy="1.571 0 0.785375" />
-        <limit effort="2000" velocity="80.0" lower="-1000000000000" upper="1000000000000" />
+        <limit effort="2000" velocity="20.0" lower="-1000000000000" upper="1000000000000" />
     </joint>
     <gazebo>
         <plugin

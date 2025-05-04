@@ -34,6 +34,7 @@ class static_tf_about_lidar_to_robot : public rclcpp::Node {
     publish_wheel_transform("share_center_FL_corner", "map", 10.0, 0.225, 0.0, 0.0, 0.0, 0.0);
     publish_wheel_transform("share_center_FR_corner", "map", 10.0, -0.225, 0.0, 0.0, 0.0, 0.0);
     publish_wheel_transform("robot_origin", "map", 0.0, 4.75, 0.0, 0.0, 0.0, 0.0);
+    publish_wheel_transform("robot_base", "odom", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
   }
   void publish_wheel_transform(const std::string &child_id, const std::string &parent_id, double x, double y, double z, double roll, double pitch, double yaw) {
     geometry_msgs::msg::TransformStamped transformStamped;

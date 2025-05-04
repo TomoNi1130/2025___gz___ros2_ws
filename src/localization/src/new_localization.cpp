@@ -101,6 +101,7 @@ class CornerLocalization : public rclcpp::Node {
   void visualize_tracking_corner();
   // 処理
   void identify_corners(const interface_pkg::msg::Corners &msg) {
+    std::vector<bool> matched_new_corners(msg.x.size(), false);
     for (size_t i = 0; i < msg.x.size(); i++) {
       Eigen::Vector2d new_robot_to_corner(msg.x[i], msg.y[i]);
       double distance = msg.distance[i];
@@ -114,8 +115,9 @@ class CornerLocalization : public rclcpp::Node {
           smallest_distance = (map_corners[j].robot_to_corner - new_robot_to_corner).norm();
         }
       }
-      if (smallest_distance < 1.5 && !map_corners[nearest_corner_id].is_fresh) {
-        map_corners[nearest_corner_id].robot_to_corner = new_robot_to_corner;
+      double pos_param = 0.8;
+      if (smallest_distance < 2.0 && !map_corners[nearest_corner_id].is_fresh) {
+        map_corners[nearest_corner_id].robot_to_corner = map_corners[nearest_corner_id].robot_to_corner * (1.0 - pos_param) + new_robot_to_corner * pos_param;
         map_corners[nearest_corner_id].static_robot_to_corner = Eigen::Vector2d(distance * cos(robot_angle + angle), distance * sin(robot_angle + angle));
         map_corners[nearest_corner_id].is_fresh = true;
       } else  // コーナーの特定
@@ -130,7 +132,7 @@ class CornerLocalization : public rclcpp::Node {
             optimal_id = j;
           }
         }
-        if (smallest_error < 0.05) {
+        if (smallest_error < 0.1) {
           map_corners[optimal_id].robot_to_corner = new_robot_to_corner;
           map_corners[optimal_id].static_robot_to_corner = static_robot_to_corner;
           map_corners[optimal_id].is_fresh = true;
@@ -147,8 +149,9 @@ class CornerLocalization : public rclcpp::Node {
         sun_robot_to_map += (map_corner.static_robot_to_corner + map_corner.corner_to_map);
         num++;
       }
+    double pram = 0.7;
     if (num != 0)
-      robot_to_map = sun_robot_to_map / double(num);
+      robot_to_map = robot_to_map * (1.0 - pram) + pram * (sun_robot_to_map / double(num));
 
     // 向きの特定
     Eigen::Vector2d angle_vector_sum = Eigen::Vector2d::Zero();
@@ -173,10 +176,10 @@ class CornerLocalization : public rclcpp::Node {
           }
         }
     }
+    double angle_pram = 0.8;
     if (angle_num != 0)
       if (angle_vector_sum.norm() > 1e-6)  // 合計ベクトルがゼロでないことを確認
-        robot_angle = atan2(angle_vector_sum.y(), angle_vector_sum.x());
-    // RCLCPP_INFO(this->get_logger(), "%f", atan2(angle_vector_sum.y(), angle_vector_sum.x()));
+        robot_angle = robot_angle * (1 - angle_pram) + atan2(angle_vector_sum.y(), angle_vector_sum.x()) * angle_pram;
   }
   void update_robot_to_map() {
     geometry_msgs::msg::TransformStamped t;

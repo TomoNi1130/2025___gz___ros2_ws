@@ -31,6 +31,15 @@ struct Line {
   double angle_to(const Line &other) const {
     return std::acos(dir.dot(other.dir));
   }
+  std::optional<Eigen::Vector2d> intersection(const Line &other) const {
+    double cross = dir.x() * other.dir.y() - dir.y() * other.dir.x();
+    if (std::abs(cross) < 1e-6) {
+      return std::nullopt;
+    }
+    Eigen::Vector2d diff = other.pos - pos;
+    double t = (diff.x() * other.dir.y() - diff.y() * other.dir.x()) / cross;
+    return pos + t * dir;
+  }
 };
 
 struct LineSeg {
@@ -229,29 +238,29 @@ class CornerFinder : public rclcpp::Node {
   std::vector<Corner> find_corner(std::vector<LineSeg> line_segments)  // 線分の両端をコーナーとしていくつかのコーナーにまとめる。
   {
     std::vector<Corner> known_corners;
-    for (int i = 0; i < line_segments.size(); i++) {
-      geometry_msgs::msg::Point p1, p2;
-      line_segments[i].return_points(p1, p2);
-      Eigen::Vector2d p1_v(p1.x, p1.y), p2_v(p2.x, p2.y);
-      bool new_corner_1 = true;
-      bool new_corner_2 = true;
-      for (int j = 0; j < known_corners.size(); j++) {
-        if ((known_corners[j].robot_look_pos - p1_v).norm() < 0.1) {
-          known_corners[j].robot_look_pos = (known_corners[j].robot_look_pos + p1_v) / 2.0;
-          known_corners[j].distance_to_robot = p1_v.norm();
-          new_corner_1 = false;
+    for (size_t i = 0; i < line_segments.size(); i++) {
+      geometry_msgs::msg::Point point[4];
+      line_segments[i].return_points(point[0], point[1]);
+      for (size_t j = i; j < line_segments.size(); j++) {
+        std::optional<Eigen::Vector2d> intersection = line_segments[i].line.intersection(line_segments[j].line);
+        if (intersection.has_value()) {
+          line_segments[j].return_points(point[2], point[3]);
+          int num = 0;
+          for (size_t k = 0; k < 4; k++)
+            if ((intersection.value() - Eigen::Vector2d(point[k].x, point[k].y)).norm() < 1.5) {
+              num++;
+            } else {
+              Eigen::Vector2d robot_look_pos = Eigen::Vector2d(point[k].x, point[k].y);
+              bool new_corner = true;
+              for (int l = 0; l < known_corners.size(); l++)
+                if ((known_corners[l].robot_look_pos - robot_look_pos).norm() < 0.5)
+                  new_corner = false;
+              if (new_corner)
+                known_corners.push_back(Corner(robot_look_pos, robot_look_pos.norm()));
+            }
+          if (num >= 2)
+            known_corners.push_back(Corner(intersection.value(), intersection.value().norm()));
         }
-        if ((known_corners[j].robot_look_pos - p2_v).norm() < 0.1) {
-          known_corners[j].robot_look_pos = (known_corners[j].robot_look_pos + p2_v) / 2.0;
-          known_corners[j].distance_to_robot = p2_v.norm();
-          new_corner_2 = false;
-        }
-      }
-      if (new_corner_1) {
-        known_corners.push_back(Corner(p1_v, p1_v.norm()));
-      }
-      if (new_corner_2) {
-        known_corners.push_back(Corner(p2_v, p2_v.norm()));
       }
     }
     return known_corners;
@@ -283,7 +292,7 @@ class CornerFinder : public rclcpp::Node {
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr corner_print;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
 
-  RANSAC ransac{250, 0.020, 3.0, this->get_logger()};
+  RANSAC ransac{150, 0.025, 3.0, this->get_logger()};
 };
 
 int main(int argc, char **argv) {

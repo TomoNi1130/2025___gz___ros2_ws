@@ -32,7 +32,7 @@ class Joy_Sub : public rclcpp::Node {
     double velocity = sqrt(vx * vx + vy * vy);
     double angle = atan2(vy, vx) + M_PI;
     double yaw = msg->axes[3];
-    double tilt = 25.0;
+    double tilt = 10.0;
     for (int i = 0; i < 4; ++i) {
       sending_msg[i].data = velocity * cos(angle + theta[i]) * tilt - tilt * yaw;
     }
