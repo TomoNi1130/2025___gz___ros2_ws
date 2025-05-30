@@ -7,6 +7,10 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 install(DIRECTORY
   launch
@@ -14,6 +18,26 @@ install(DIRECTORY
   world
   config
   DESTINATION share/${PROJECT_NAME}
+)
+
+add_library(static_tf SHARED src/static_tf.cpp)
+
+ament_target_dependencies(static_tf
+  rclcpp rclcpp_components
+  tf2 tf2_ros
+)
+
+rclcpp_components_register_node(static_tf
+    PLUGIN "UC::StaticTF"
+    EXECUTABLE static_tf_help
+)
+
+ament_export_targets(export_component)
+install(TARGETS static_tf
+        EXPORT export_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 if(BUILD_TESTING)

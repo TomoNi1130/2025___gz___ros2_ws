@@ -28,7 +28,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     world = LaunchConfiguration("world")
     robot_name = LaunchConfiguration("robot_name")
-    
+
     robot_frame_id = 'robot_base'
 
     left_lidar_topic = "left_lidar"
@@ -109,12 +109,33 @@ def generate_launch_description():
         ],
     )
 
+    basic_run = ComposableNodeContainer(
+        name='basic_run_container',
+        namespace='wtf2025',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='bring_up',
+                plugin='UC::StaticTF',
+                name='basic_run_node',
+                extra_arguments=[{'use_intra_process_comms': True}],
+                parameters=[{
+                    'use_sim_time' : use_sim_time,
+                    'robot_frame_id': robot_frame_id,
+                    'left_lidar_frame_id': f'robot/{robot_frame_id}/left_lidar',
+                    'right_lidar_frame_id': f'robot/{robot_frame_id}/right_lidar',
+                }],
+            ),
+        ]
+    )
+
     delayed_load_1 = TimerAction(
         period=1.0,
         actions=[
             ComposableNodeContainer(
                 name='points_processer_container',
-                namespace='',
+                namespace='wtf2025',
                 package='rclcpp_components',
                 executable='component_container',
                 composable_node_descriptions=[
@@ -122,8 +143,9 @@ def generate_launch_description():
                     package='points_processes',
                     plugin='points_processes::PointIntegration',
                     name='points_integration_node',
-                    extra_arguments=[{'use_intra_process_comms': True}],
+                    extra_arguments=[{'use_intra_process_comms': True,}],
                     parameters=[{
+                        'use_sim_time' : use_sim_time,
                         'scan_topic_names': [left_lidar_topic, right_lidar_topic],
                         'merged_topic_name': merged_lidar_topic,
                         'merged_frame_id': robot_frame_id,
@@ -139,6 +161,7 @@ def generate_launch_description():
         rviz,
         gz_sim,gz_spawn_robot,robot_description,
         moter_bridge,lidar_bridge,
+        basic_run,
         delayed_load_1,
         ]
     )
