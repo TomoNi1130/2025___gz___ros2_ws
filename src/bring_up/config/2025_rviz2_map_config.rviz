@@ -56,11 +56,41 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        BL_corner:
+          Value: true
+        BR_corner:
+          Value: true
+        FL_corner:
+          Value: true
+        FR_corner:
+          Value: true
+        center_BL_corner:
+          Value: true
+        center_BR_corner:
+          Value: true
+        center_FL_corner:
+          Value: true
+        center_FR_corner:
+          Value: true
         left_lidar:
+          Value: true
+        map:
+          Value: true
+        odom:
           Value: true
         right_lidar:
           Value: true
         robot_base:
+          Value: true
+        robot_origin:
+          Value: true
+        share_center_BL_corner:
+          Value: true
+        share_center_BR_corner:
+          Value: true
+        share_center_FL_corner:
+          Value: true
+        share_center_FR_corner:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -68,17 +98,103 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        robot_base:
-          left_lidar:
+        map:
+          BL_corner:
             {}
-          right_lidar:
+          BR_corner:
+            {}
+          FL_corner:
+            {}
+          FR_corner:
+            {}
+          center_BL_corner:
+            {}
+          center_BR_corner:
+            {}
+          center_FL_corner:
+            {}
+          center_FR_corner:
+            {}
+          odom:
+            robot_base:
+              left_lidar:
+                {}
+              right_lidar:
+                {}
+          robot_origin:
+            {}
+          share_center_BL_corner:
+            {}
+          share_center_BR_corner:
+            {}
+          share_center_FL_corner:
+            {}
+          share_center_FR_corner:
             {}
       Update Interval: 0
+      Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz_default_plugins/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: Pose
+      Shaft Length: 1
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /goal_pose
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        informations: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /coments_for_corner
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        arrow: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /to_goal
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        tracked_points: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /tracked_corner
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: robot_base
+    Fixed Frame: map
     Frame Rate: 29
   Name: root
   Tools:
@@ -121,25 +237,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 7.71591854095459
+      Distance: 13.598085403442383
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: 5.021645545959473
+        Y: 2.4212136268615723
+        Z: 0.005058985203504562
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4447985887527466
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.0722639560699463
+      Yaw: 3.112262487411499
     Saved: ~
 Window Geometry:
   Displays:
@@ -159,5 +275,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1269
-  X: 1439
-  Y: 202
+  X: 331
+  Y: 214

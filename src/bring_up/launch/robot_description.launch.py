@@ -7,13 +7,10 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
 
-    # ''use_sim_time'' is used to  determine whether ros2 use simulation time provided by simulation environment (Gazebo).
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
-
-    models_dir = get_package_share_directory("description")
+    models_dir = get_package_share_directory("bring_up")
     urdf = os.path.join(models_dir, "urdf", "robot.urdf")
 
-    # open the whole urdf_file_name file and read it content to robot_desc
     with open(urdf, 'r') as infp:
         robot_desc = infp.read()
 

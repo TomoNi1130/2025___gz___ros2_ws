@@ -7,10 +7,10 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
 
 install(DIRECTORY
   launch
+  urdf
   world
   config
   DESTINATION share/${PROJECT_NAME}
