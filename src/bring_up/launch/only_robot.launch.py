@@ -30,6 +30,8 @@ def generate_launch_description():
     robot_name = LaunchConfiguration("robot_name")
 
     robot_frame_id = 'robot_base'
+    left_lidar_frame_id = 'left_lidar'
+    right_lidar_frame_id = 'right_lidar'
 
     left_lidar_topic = "left_lidar"
     right_lidar_topic = "right_lidar"
@@ -123,8 +125,8 @@ def generate_launch_description():
                 parameters=[{
                     'use_sim_time' : use_sim_time,
                     'robot_frame_id': robot_frame_id,
-                    'left_lidar_frame_id': f'robot/{robot_frame_id}/left_lidar',
-                    'right_lidar_frame_id': f'robot/{robot_frame_id}/right_lidar',
+                    'left_lidar_frame_id': f'robot/{robot_frame_id}/{left_lidar_frame_id}',
+                    'right_lidar_frame_id': f'robot/{robot_frame_id}/{right_lidar_frame_id}',
                 }],
             ),
         ]

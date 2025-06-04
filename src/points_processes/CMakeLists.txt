@@ -20,9 +20,6 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
-# find_package(tf2_geometry_msgs REQUIRED)
-# find_package(visualization_msgs REQUIRED)
-# find_package(Eigen3 REQUIRED)
 
 add_library(points_integration SHARED src/points_integration.cpp)
 ament_target_dependencies(points_integration
@@ -30,14 +27,12 @@ ament_target_dependencies(points_integration
   sensor_msgs
   laser_geometry
   tf2_geometry_msgs
-  tf2_ros
-  tf2
-  pcl_ros
-  pcl_conversions
+  tf2_ros tf2
+  pcl_ros pcl_conversions
 )
 
-rclcpp_components_register_node(points_integration PLUGIN "points_processes::PointIntegration" EXECUTABLE points_integration_node
-)
+rclcpp_components_register_node(points_integration PLUGIN "points_processes::PointIntegration" EXECUTABLE points_integration_node)
+
 ament_export_targets(export_component)
 install(TARGETS points_integration
         EXPORT export_component

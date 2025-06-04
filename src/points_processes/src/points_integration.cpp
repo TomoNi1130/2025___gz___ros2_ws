@@ -14,7 +14,7 @@ PointIntegration::PointIntegration(const rclcpp::NodeOptions &options) : Node("p
   merged_frame_id = this->get_parameter("merged_frame_id").as_string();
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&PointIntegration::send_merged_scan, this));
-  points_cloud_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("merged_points", 10);
+  points_cloud_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(merged_topic_name, 10);
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
   callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);

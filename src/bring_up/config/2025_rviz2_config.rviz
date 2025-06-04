@@ -25,7 +25,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
   - Class: rviz_common/Transformation
     Name: Transformation
 Visualization Manager:
@@ -60,6 +60,10 @@ Visualization Manager:
           Value: true
         right_lidar:
           Value: true
+        robot/robot_base/left_lidar:
+          Value: true
+        robot/robot_base/right_lidar:
+          Value: true
         robot_base:
           Value: true
       Marker Scale: 1
@@ -73,7 +77,44 @@ Visualization Manager:
             {}
           right_lidar:
             {}
+          robot/robot_base/left_lidar:
+            {}
+          robot/robot_base/right_lidar:
+            {}
       Update Interval: 0
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /merged_points
+      Use Fixed Frame: true
+      Use rainbow: true
       Value: true
   Enabled: true
   Global Options:
@@ -136,10 +177,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4447985887527466
+      Pitch: 0.629798412322998
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.0722639560699463
+      Yaw: 3.022263526916504
     Saved: ~
 Window Geometry:
   Displays:
@@ -159,5 +200,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1269
-  X: 1439
-  Y: 202
+  X: 1335
+  Y: 151
