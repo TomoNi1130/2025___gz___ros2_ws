@@ -35,7 +35,7 @@ def generate_launch_description():
 
     left_lidar_topic = "left_lidar"
     right_lidar_topic = "right_lidar"
-    merged_lidar_topic = "merged_lidar"
+    merged_lidar_topic = "merged_points"
 
     rviz = Node(
         package="rviz2",
@@ -133,7 +133,7 @@ def generate_launch_description():
     )
 
     delayed_load_1 = TimerAction(
-        period=1.0,
+        period=2.0,
         actions=[
             ComposableNodeContainer(
                 name='points_processer_container',
