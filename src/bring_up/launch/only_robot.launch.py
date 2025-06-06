@@ -116,6 +116,8 @@ def generate_launch_description():
         namespace='wtf2025',
         package='rclcpp_components',
         executable='component_container',
+        output='screen',
+        emulate_tty=True,
         composable_node_descriptions=[
             ComposableNode(
                 package='bring_up',
@@ -133,13 +135,15 @@ def generate_launch_description():
     )
 
     delayed_load_1 = TimerAction(
-        period=2.0,
+        period=1.0,
         actions=[
             ComposableNodeContainer(
                 name='points_processer_container',
                 namespace='wtf2025',
                 package='rclcpp_components',
                 executable='component_container',
+                output='screen',
+                emulate_tty=True,
                 composable_node_descriptions=[
                     ComposableNode(
                     package='points_processes',
