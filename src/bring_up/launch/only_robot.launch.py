@@ -117,7 +117,6 @@ def generate_launch_description():
         package='rclcpp_components',
         executable='component_container',
         output='screen',
-        emulate_tty=True,
         composable_node_descriptions=[
             ComposableNode(
                 package='bring_up',
@@ -143,7 +142,6 @@ def generate_launch_description():
                 package='rclcpp_components',
                 executable='component_container',
                 output='screen',
-                emulate_tty=True,
                 composable_node_descriptions=[
                     ComposableNode(
                     package='points_processes',
