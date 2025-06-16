@@ -31,6 +31,16 @@ ament_target_dependencies(corners_finder
   interface_pkg
 )
 
+rclcpp_components_register_node(corners_finder PLUGIN "corners_find::CornersFinder" EXECUTABLE corners_finder_node)
+
+ament_export_targets(export_component)
+install(TARGETS corners_finder
+        EXPORT export_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

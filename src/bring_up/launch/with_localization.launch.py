@@ -153,8 +153,18 @@ def generate_launch_description():
                         'scan_topic_names': [left_lidar_topic, right_lidar_topic],
                         'merged_topic_name': merged_lidar_topic,
                         'merged_frame_id': robot_frame_id,
-                    }],
-                ),]
+                    }]
+                ),ComposableNode(
+                    package='corner_localization',
+                    plugin='corners_find::CornersFinder',
+                    name='corner_finder_node',
+                    extra_arguments=[{'use_intra_process_comms': True,}],
+                    parameters=[{
+                        'use_sim_time' : use_sim_time,
+                        'merged_topic_name': merged_lidar_topic,
+                        'merged_frame_id': robot_frame_id,
+                    }]
+                )]
             ),
         ]
     )
