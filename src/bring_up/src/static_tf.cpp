@@ -20,6 +20,7 @@ StaticTF::StaticTF(const rclcpp::NodeOptions &options) : rclcpp::Node("static_tf
 void StaticTF::msg_send() {
   send_tf(left_lidar_frame_id_, robot_frame_id_, 0.0, 0.4, 0.0, 0.0, 0.0, 0);
   send_tf(right_lidar_frame_id_, robot_frame_id_, 0.0, -0.4, 0.0, 0.0, 0.0, 3.14159);
+  send_tf("robot_base", "map", 0.0, 4.75, 0.0, 0.0, 0.0, 0.0);
 }
 
 void StaticTF::send_tf(const std::string &child_id, const std::string &parent_id, double x, double y, double z, double roll, double pitch, double yaw) {

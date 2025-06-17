@@ -28,9 +28,10 @@ class PointIntegration : public rclcpp::Node {
   pcl::PointCloud<pcl::PointXYZ> resampler(const pcl::PointCloud<pcl::PointXYZ> &target_points);
   bool point_inserter(const pcl::PointXYZ &point, const pcl::PointXYZ &pre_point, pcl::PointXYZ &new_point, bool &inserted);
 
-  double equalization_point_dis = 0.030;
-  double point_dis_threshold = 0.300;
+  double equalization_point_dis = 0.050;
+  double point_dis_threshold = 0.200;
   double total_dis;
+
   std::vector<std::string> scan_topic_names;
   std::string merged_topic_name;
   std::string merged_frame_id;

@@ -1,12 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
-project(corner_localization)
+project(localization)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release")
 endif()
 
 # find dependencies
@@ -16,25 +12,25 @@ find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(visualization_msgs REQUIRED)
-find_package(interface_pkg REQUIRED)
 
-add_library(corners_finder SHARED src/corners_find.cpp)
-ament_target_dependencies(corners_finder
-  rclcpp rclcpp_components
+add_library(localization SHARED src/icp_localization.cpp)
+ament_target_dependencies(localization
+  rclcpp rclcpp_components 
   sensor_msgs
-  tf2 tf2_ros
+  tf2_geometry_msgs
+  tf2_ros tf2
   pcl_ros pcl_conversions
   visualization_msgs
-  interface_pkg
 )
 
-rclcpp_components_register_node(corners_finder PLUGIN "corners_find::CornersFinder" EXECUTABLE corners_finder_node)
+rclcpp_components_register_node(localization PLUGIN "Localization::LocalizationNode" EXECUTABLE localization_node)
 
 ament_export_targets(export_component)
-install(TARGETS corners_finder
+install(TARGETS localization
         EXPORT export_component
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
