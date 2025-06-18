@@ -29,7 +29,7 @@ class PointIntegration : public rclcpp::Node {
   bool point_inserter(const pcl::PointXYZ &point, const pcl::PointXYZ &pre_point, pcl::PointXYZ &new_point, bool &inserted);
 
   double equalization_point_dis = 0.050;
-  double point_dis_threshold = 0.200;
+  double point_dis_threshold = 0.300;
   double total_dis;
 
   std::vector<std::string> scan_topic_names;

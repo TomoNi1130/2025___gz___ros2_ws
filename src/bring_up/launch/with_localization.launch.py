@@ -113,7 +113,7 @@ def generate_launch_description():
 
     basic_run = ComposableNodeContainer(
         name='basic_run_container',
-        namespace='wtf2025',
+        namespace='',
         package='rclcpp_components',
         executable='component_container',
         output='screen',
@@ -121,7 +121,6 @@ def generate_launch_description():
             ComposableNode(
                 package='bring_up',
                 plugin='UC::StaticTF',
-                name='basic_run_node',
                 extra_arguments=[{'use_intra_process_comms': True}],
                 parameters=[{
                     'use_sim_time' : use_sim_time,
@@ -138,34 +137,49 @@ def generate_launch_description():
         actions=[
             ComposableNodeContainer(
                 name='points_processer_container',
-                namespace='wtf2025',
+                namespace='',
                 package='rclcpp_components',
                 executable='component_container',
                 output='screen',
                 composable_node_descriptions=[
-                    ComposableNode(
-                        package='points_processes',
-                        plugin='points_processes::PointIntegration',
-                        name='points_integration_node',
-                        extra_arguments=[{'use_intra_process_comms': True,}],
-                        parameters=[{
-                            'use_sim_time' : use_sim_time,
-                            'scan_topic_names': [left_lidar_topic, right_lidar_topic],
-                            'merged_topic_name': merged_lidar_topic,
-                            'merged_frame_id': robot_frame_id,
-                            }]
-                    ),ComposableNode(
-                        package='localization',
-                        plugin='Localization::LocalizationNode',
-                        name='localization_node',
-                        extra_arguments=[{'use_intra_process_comms': True,}],
-                        parameters=[{
-                            'use_sim_time':use_sim_time,
-                            'merged_topic_name': merged_lidar_topic,
-                            'merged_frame_id': robot_frame_id,
-                            'map_frame_id':'map',
-                        }]
-                    )]
+                ComposableNode(
+                    package='points_processes',
+                    plugin='points_processes::PointIntegration',
+
+                    extra_arguments=[{'use_intra_process_comms': True,}],
+                    parameters=[{
+                        'use_sim_time' : use_sim_time,
+                        'scan_topic_names': [left_lidar_topic, right_lidar_topic],
+                        'merged_topic_name': merged_lidar_topic,
+                        'merged_frame_id': robot_frame_id,
+                    }],
+                ),]
+            ),
+        ]
+    )
+
+    delayed_load_2 = TimerAction(
+        period=6.0,
+        actions=[
+            ComposableNodeContainer(
+                name='points_processer_container',
+                namespace='',
+                package='rclcpp_components',
+                executable='component_container',
+                output='screen',
+                composable_node_descriptions=[
+                ComposableNode(
+                    package='localization',
+                    plugin='Localization::LocalizationNode',
+                    name='localization_node',
+                    extra_arguments=[{'use_intra_process_comms': True,}],
+                    parameters=[{
+                        'use_sim_time':use_sim_time,
+                        'merged_topic_name': merged_lidar_topic,
+                        'merged_frame_id': robot_frame_id,
+                        'map_frame_id':'map',
+                    }]
+                )]
             ),
         ]
     )
@@ -178,5 +192,6 @@ def generate_launch_description():
         moter_bridge,lidar_bridge,
         basic_run,
         delayed_load_1,
+        delayed_load_2,
         ]
     )

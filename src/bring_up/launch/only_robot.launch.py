@@ -113,7 +113,7 @@ def generate_launch_description():
 
     basic_run = ComposableNodeContainer(
         name='basic_run_container',
-        namespace='wtf2025',
+        namespace='',
         package='rclcpp_components',
         executable='component_container',
         output='screen',
@@ -121,7 +121,6 @@ def generate_launch_description():
             ComposableNode(
                 package='bring_up',
                 plugin='UC::StaticTF',
-                name='basic_run_node',
                 extra_arguments=[{'use_intra_process_comms': True}],
                 parameters=[{
                     'use_sim_time' : use_sim_time,
@@ -138,7 +137,7 @@ def generate_launch_description():
         actions=[
             ComposableNodeContainer(
                 name='points_processer_container',
-                namespace='wtf2025',
+                namespace='',
                 package='rclcpp_components',
                 executable='component_container',
                 output='screen',
@@ -146,7 +145,7 @@ def generate_launch_description():
                     ComposableNode(
                     package='points_processes',
                     plugin='points_processes::PointIntegration',
-                    name='points_integration_node',
+
                     extra_arguments=[{'use_intra_process_comms': True,}],
                     parameters=[{
                         'use_sim_time' : use_sim_time,

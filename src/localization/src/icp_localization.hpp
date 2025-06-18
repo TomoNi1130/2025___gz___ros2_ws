@@ -37,13 +37,15 @@ class LocalizationNode : public rclcpp::Node {
 
  private:
   void topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_ptr);
-  void remove_outlier(pcl::PointCloud<pcl::PointXYZ> &target_cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, double threshold);  // ransacを使って直線状になっている点のみにする
+  void remove_outlier(pcl::PointCloud<pcl::PointXYZ> &target_cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, double threshold);         // ransacを使って直線状になっている点のみにする
+  tf2::Transform do_icp(pcl::PointCloud<pcl::PointXYZ> &target_cloud, std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> &planes);  // point to planesを使用
 
   Eigen::Vector2d robot_pos, robot_dir;
 
   std::string merged_topic_name;
   std::string merged_frame_id;
   std::string map_frame_id;
+  int ITERATION_NUM = 100;
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;

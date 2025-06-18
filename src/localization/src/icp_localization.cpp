@@ -4,7 +4,17 @@
 
 namespace Localization {
 
-LocalizationNode::LocalizationNode(const rclcpp::NodeOptions& options) : Node("points_integration", options) {
+Line::Line() : pos(Eigen::Vector2d(0, 0)), dir(Eigen::Vector2d(1, 0)) {}
+Line::Line(const Eigen::Vector2d &position, const Eigen::Vector2d &direction) : pos(position), dir(direction) {}
+
+Line Line::from_points(Eigen::Vector2d &a, Eigen::Vector2d &b) { return Line{a, (b - a).normalized()}; }
+double Line::distance_to(Eigen::Vector2d &point) const {
+  Eigen::Vector2d v = point - pos;
+  double cross = dir.x() * v.y() - dir.y() * v.x();
+  return std::abs(cross);
+}
+
+LocalizationNode::LocalizationNode(const rclcpp::NodeOptions &options) : Node("points_integration", options) {
   this->declare_parameter<std::string>("merged_topic_name", "merged_scan");
   this->declare_parameter<std::string>("merged_frame_id", "robot_base");
   this->declare_parameter<std::string>("map_frame_id", "map");
@@ -24,28 +34,29 @@ void LocalizationNode::topic_callback(const sensor_msgs::msg::PointCloud2::Share
   pcl::PointCloud<pcl::PointXYZ> robot_pcl_cloud, map_pcl_cloud;
   pcl::fromROSMsg(*msg_ptr, robot_pcl_cloud);
   geometry_msgs::msg::TransformStamped transform_stamped;
-  // 点群の座標系を marged_frame_id から map_frame_id への変換
   try {
     transform_stamped = tf_buffer_->lookupTransform(map_frame_id, merged_frame_id, tf2::TimePointZero);
-  } catch (tf2::TransformException& ex) {
+  } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(this->get_logger(), "Transform failed: %s", ex.what());
     return;
   }
-  Eigen::Affine3d affine = tf2::transformToEigen(transform_stamped.transform);
+  Eigen::Affine3d affine = tf2::transformToEigen(transform_stamped.transform);  // 点群の座標系を marged_frame_id から map_frame_id への変換
   Eigen::Matrix4f transform = affine.matrix().cast<float>();
   pcl::transformPointCloud(robot_pcl_cloud, map_pcl_cloud, transform, false);
 
-  pcl::PointCloud<pcl::PointXYZ> clean_cloud;  // 外れ値を除外した点群
-  remove_outlier(map_pcl_cloud, clean_cloud, 0.01);
+  pcl::PointCloud<pcl::PointXYZ> clean_cloud;
+  remove_outlier(map_pcl_cloud, clean_cloud, 0.01);  // 外れ値を除外
+
+  // icp開始
 
   // map座標系で点群を表示
   auto ros2_points = std::make_shared<sensor_msgs::msg::PointCloud2>();
-  pcl::toROSMsg(map_pcl_cloud, *ros2_points);
+  pcl::toROSMsg(clean_cloud, *ros2_points);
   ros2_points->header.frame_id = "map";
   points_view->publish(*ros2_points);
 }
 
-void LocalizationNode::remove_outlier(pcl::PointCloud<pcl::PointXYZ>& target_cloud, pcl::PointCloud<pcl::PointXYZ>& cloud_out, double threshold) {
+void LocalizationNode::remove_outlier(pcl::PointCloud<pcl::PointXYZ> &target_cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, double threshold) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<int> dis(0, target_cloud.size() - 1);
@@ -54,16 +65,39 @@ void LocalizationNode::remove_outlier(pcl::PointCloud<pcl::PointXYZ>& target_clo
     cloud_v.emplace_back(Eigen::Vector2d(target_cloud.points[i].x, target_cloud.points[i].y), false);
   }
   bool be_line = true;
-  int iterations_num = 100;
+  int iterations_num = ITERATION_NUM;
   while (be_line) {
+    int best_inlier_num = 0;
+    std::vector<int> best_inlier_IDs;
     for (int i = 0; i < iterations_num; i++) {
       int guess_1 = dis(gen);
       int guess_2 = dis(gen);
       while (guess_1 == guess_2 || cloud_v[guess_1].second)
         guess_1 = dis(gen);
+      Line guess_line = Line::from_points(cloud_v[guess_1].first, cloud_v[guess_2].first);
+      int inlier_num = 0;
+      std::vector<int> inlier_IDs;
+      for (size_t j = 0; j < cloud_v.size(); j++) {
+        if (!cloud_v[j].second && guess_line.distance_to(cloud_v[j].first) < threshold) {
+          inlier_num++;
+          inlier_IDs.push_back(j);
+        }
+      }
+      if (best_inlier_num < inlier_num) {
+        best_inlier_num = inlier_num;
+        best_inlier_IDs = inlier_IDs;
+      }
     }
+    for (int id : best_inlier_IDs) {
+      cloud_out.points.push_back(target_cloud.points[id]);
+      cloud_v[id].second = true;
+    }
+    if (best_inlier_num < cloud_v.size() / 8)  // ここの数字は適当
+      be_line = false;
   }
-  RCLCPP_INFO(this->get_logger(), "points size:%zu", cloud_v.size());
+}
+
+tf2::Transform do_icp(pcl::PointCloud<pcl::PointXYZ> &target_cloud, std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> &planes) {
 }
 
 }  // namespace Localization
