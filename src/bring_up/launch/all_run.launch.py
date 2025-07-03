@@ -27,9 +27,10 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration("use_sim_time")
     world = LaunchConfiguration("world")
-    robot_name = LaunchConfiguration("robot_name")
 
     robot_frame_id = 'robot_base'
+    odom_frame_id = 'odom'
+    map_frame_id = 'map'
     left_lidar_frame_id = 'left_lidar'
     right_lidar_frame_id = 'right_lidar'
 
@@ -37,12 +38,20 @@ def generate_launch_description():
     right_lidar_topic = "right_lidar"
     merged_lidar_topic = "merged_points"
 
-    rviz = Node(
+    robot_rviz = Node(
         package="rviz2",
         executable="rviz2",
         name="rviz2",
         output="screen",
         arguments=["-d", os.path.join(bringup_dir, "config", "2025_rviz2_config.rviz")],
+    )
+
+    map_rviz = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        output="screen",
+        arguments=["-d", os.path.join(bringup_dir, "config", "2025_rviz2_map_config.rviz")],
     )
 
     gz_sim = ExecuteProcess(
@@ -111,6 +120,12 @@ def generate_launch_description():
         ],
     )
 
+    joy_node = Node(
+            package='joy_linux',
+            executable='joy_linux_node',
+            name='joy_node',
+    )
+
     basic_run = ComposableNodeContainer(
         name='basic_run_container',
         namespace='wtf2025',
@@ -129,7 +144,12 @@ def generate_launch_description():
                     'left_lidar_frame_id': f'robot/{robot_frame_id}/{left_lidar_frame_id}',
                     'right_lidar_frame_id': f'robot/{robot_frame_id}/{right_lidar_frame_id}',
                 }],
-            ),
+            ),ComposableNode(
+                package='robot_controll',
+                plugin='wheels_controll::WheelCon',
+                name='wheels_controll_node',
+                extra_arguments=[{'use_intra_process_comms': True}],
+            )
         ]
     )
 
@@ -144,17 +164,28 @@ def generate_launch_description():
                 output='screen',
                 composable_node_descriptions=[
                     ComposableNode(
-                    package='points_processes',
-                    plugin='points_processes::PointIntegration',
-                    name='points_integration_node',
-                    extra_arguments=[{'use_intra_process_comms': True,}],
-                    parameters=[{
-                        'use_sim_time' : use_sim_time,
-                        'scan_topic_names': [left_lidar_topic, right_lidar_topic],
-                        'merged_topic_name': merged_lidar_topic,
-                        'merged_frame_id': robot_frame_id,
-                    }],
-                ),]
+                        package='points_processes',
+                        plugin='points_processes::PointIntegration',
+                        name='points_integration_node',
+                        extra_arguments=[{'use_intra_process_comms': True,}],
+                        parameters=[{
+                            'use_sim_time' : use_sim_time,
+                            'scan_topic_names': [left_lidar_topic, right_lidar_topic],
+                            'merged_topic_name': merged_lidar_topic,
+                            'merged_frame_id': robot_frame_id,
+                        }],),
+                    ComposableNode(
+                        package='localization',
+                        plugin='Localization::LocalizationNode',
+                        name='localization_node',
+                        extra_arguments=[{'use_intra_process_comms': True,}],
+                        parameters=[{
+                            'merged_topic_name': merged_lidar_topic,
+                            'merged_frame_id': robot_frame_id,
+                            'map_frame_id': map_frame_id,
+                            'odom_frame_id': odom_frame_id,
+                    }])
+                ]
             ),
         ]
     )
@@ -162,10 +193,11 @@ def generate_launch_description():
     return LaunchDescription(
         args + 
         [
-        rviz,
+        robot_rviz,
+        map_rviz,
         gz_sim,gz_spawn_robot,robot_description,
         moter_bridge,lidar_bridge,
-        basic_run,
+        basic_run,joy_node,
         delayed_load_1,
         ]
     )

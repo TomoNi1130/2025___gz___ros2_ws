@@ -31,7 +31,7 @@
     <link name="FL_wheel">
         <visual>
             <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.10" length="0.1" />
             </geometry>
             <material name="black">
                 <color rgba="0.0 0.0 0.0 1.0" />
@@ -39,13 +39,13 @@
         </visual>
         <collision>
             <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.10" length="0.1" />
             </geometry>
             <surface>
                 <friction>
                     <ode>
                         <mu>1.0</mu>  <!-- 摩擦係数 -->
-                        <mu2>0.05</mu2>  <!-- 横方向の摩擦係数 -->
+                        <mu2>0.1</mu2>  <!-- 横方向の摩擦係数 -->
                     </ode>
                 </friction>
             </surface>
@@ -74,7 +74,7 @@
     <link name="BL_wheel">
         <visual>
             <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.10" length="0.1" />
             </geometry>
             <material name="black">
                 <color rgba="0.0 0.0 0.0 1.0" />
@@ -82,13 +82,13 @@
         </visual>
         <collision>
             <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.10" length="0.1" />
             </geometry>
             <surface>
                 <friction>
                     <ode>
                         <mu>1.0</mu>  <!-- 摩擦係数 -->
-                        <mu2>0.05</mu2>  <!-- 横方向の摩擦係数 -->
+                        <mu2>0.1</mu2>  <!-- 横方向の摩擦係数 -->
                     </ode>
                 </friction>
             </surface>
@@ -117,7 +117,7 @@
     <link name="BR_wheel">
         <visual>
             <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.10" length="0.1" />
             </geometry>
             <material name="black">
                 <color rgba="0.0 0.0 0.0 1.0" />
@@ -125,13 +125,13 @@
         </visual>
         <collision>
             <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.10" length="0.1" />
             </geometry>
             <surface>
                 <friction>
                     <ode>
                         <mu>1.0</mu>  <!-- 摩擦係数 -->
-                        <mu2>0.05</mu2>  <!-- 横方向の摩擦係数 -->
+                        <mu2>0.1</mu2>  <!-- 横方向の摩擦係数 -->
                     </ode>
                 </friction>
             </surface>
@@ -160,7 +160,7 @@
     <link name="FR_wheel">
         <visual>
             <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.10" length="0.1" />
             </geometry>
             <material name="black">
                 <color rgba="0.0 0.0 0.0 1.0" />
@@ -168,13 +168,13 @@
         </visual>
         <collision>
             <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.10" length="0.1" />
             </geometry>
             <surface>
                 <friction>
                     <ode>
                         <mu>1.0</mu>  <!-- 摩擦係数 -->
-                        <mu2>0.05</mu2>  <!-- 横方向の摩擦係数 -->
+                        <mu2>0.1</mu2>  <!-- 横方向の摩擦係数 -->
                     </ode>
                 </friction>
             </surface>

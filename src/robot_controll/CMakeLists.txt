@@ -13,8 +13,32 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(visualization_msgs REQUIRED)
+
+add_library(wheel_controll SHARED
+   src/wheels_controll.cpp)
+
+ament_target_dependencies(wheel_controll
+  rclcpp
+  rclcpp_components
+  std_msgs
+  sensor_msgs
+)
+
+rclcpp_components_register_node(
+    wheel_controll
+    PLUGIN "wheels_controll::WheelCon"
+    EXECUTABLE wheel_controll_node
+)
+
+ament_export_targets(export_component)
+install(TARGETS wheel_controll
+        EXPORT export_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
