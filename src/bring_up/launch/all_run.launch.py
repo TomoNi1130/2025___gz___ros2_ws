@@ -154,7 +154,7 @@ def generate_launch_description():
     )
 
     delayed_load_1 = TimerAction(
-        period=1.0,
+        period=2.0,
         actions=[
             ComposableNodeContainer(
                 name='points_processer_container',

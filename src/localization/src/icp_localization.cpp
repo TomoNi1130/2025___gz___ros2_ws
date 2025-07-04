@@ -4,21 +4,35 @@
 
 namespace Localization {
 
+double normalize_angle(double angle) {
+  while (angle > M_PI) angle -= 2.0 * M_PI;
+  while (angle <= -M_PI) angle += 2.0 * M_PI;
+  return angle;
+}
+
 Eigen::Matrix2d getR(double theta) {
   Eigen::Matrix2d R;
-  R << cos(theta), -sin(theta),
-      sin(theta), cos(theta);
+  double n_theta = normalize_angle(theta);
+  R << cos(n_theta), -sin(n_theta),
+      sin(n_theta), cos(n_theta);
   return R;
 }
 
-Line::Line() : pos(Eigen::Vector2d(0, 0)), dir(Eigen::Vector2d(1, 0)) {}
 Line::Line(const Eigen::Vector2d &position, const Eigen::Vector2d &direction) : pos(position), dir(direction) {}
 
-Line Line::from_points(Eigen::Vector2d &a, Eigen::Vector2d &b) { return Line{a, (b - a).normalized()}; }
-double Line::distance_to(Eigen::Vector2d &point) const {
-  Eigen::Vector2d v = point - pos;
-  double cross = dir.x() * v.y() - dir.y() * v.x();
-  return std::abs(cross);
+double Line::distance_to(const Eigen::Vector2d &p) const {
+  Eigen::Vector2d normal(-dir.y(), dir.x());
+  normal.normalize();
+  return normal.dot(p - pos);
+}
+
+double LineSeg::distance_to(const Eigen::Vector2d &point) {
+  Eigen::Vector2d v = point - line.pos;
+  double t = v.dot(line.dir);
+  if (t < 0 || length < t) {
+    return std::numeric_limits<double>::max();
+  }
+  return line.distance_to(point);
 }
 
 LocalizationNode::LocalizationNode(const rclcpp::NodeOptions &options) : Node("points_integration", options) {
@@ -37,102 +51,164 @@ LocalizationNode::LocalizationNode(const rclcpp::NodeOptions &options) : Node("p
   subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(merged_topic_name, rclcpp::SensorDataQoS{}, std::bind(&LocalizationNode::topic_callback, this, std::placeholders::_1));
   marker_print = this->create_publisher<visualization_msgs::msg::Marker>("lines_position", 10);
   points_view = this->create_publisher<sensor_msgs::msg::PointCloud2>("map_look_points", 10);
+  icp_points_view = this->create_publisher<sensor_msgs::msg::PointCloud2>("pcl_map_look_points", 10);
 }
 
 void LocalizationNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_ptr) {
   pcl::PointCloud<pcl::PointXYZ> map_pcl_cloud;
-  sensor_msgs::msg::PointCloud2 cloud_msg = *msg_ptr;
+  pcl::PointCloud<pcl::PointXYZ> robot_pcl_cloud;
+  sensor_msgs::msg::PointCloud2 msg_cloud = *msg_ptr;
 
   try {
     sensor_msgs::msg::PointCloud2 cloud_transformed;
-    tf_buffer_->transform(cloud_msg, cloud_transformed, map_frame_id, tf2::durationFromSec(0.1));
+    tf_buffer_->transform(msg_cloud, cloud_transformed, map_frame_id, tf2::durationFromSec(0.1));
     pcl::fromROSMsg(cloud_transformed, map_pcl_cloud);
+    pcl::fromROSMsg(msg_cloud, robot_pcl_cloud);
   } catch (const tf2::TransformException &ex) {
     RCLCPP_WARN(rclcpp::get_logger("Transform"), "Transform failed: %s", ex.what());
-  }
-
-  std::vector<Eigen::Vector2d> map_points;
-  for (const auto &point : map_pcl_cloud.points) {
-    map_points.emplace_back(point.x, point.y);
   }
 
   // pcl::PointCloud<pcl::PointXYZ> clean_cloud;
   // remove_outlier(robot_pcl_cloud, clean_cloud, 0.015);  // 外れ値を除外
 
   // icp開始
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> num_dis(-3.0, 3.0);
+  Eigen::Vector3d guess_par = do_icp(robot_pcl_cloud, map_lines);
+  RCLCPP_INFO(this->get_logger(), "ICP guess parameters: x: %f, y: %f, theta: %f", guess_par(0), guess_par(1), guess_par(2));
 
-  // Eigen::Vector3d guess_par = {0, 0, 0};
-  // double min_cost = std::numeric_limits<double>::max();
-  // for (int inter = 0; inter < 500; inter++) {
-  //   Eigen::Vector3d guess_guess_par(num_dis(gen), num_dis(gen), num_dis(gen) * M_PI);  // 初期値
-  //   threads.push_back(std::thread([this, &guess_guess_par, &real_points, &guess_par, &min_cost]() { this->ICP(guess_guess_par, real_points, guess_par, min_cost); }));
-  // }
-  // for (std::thread &t : threads) {
-  //   t.join();
-  // }
-  // threads.clear();
+  pcl::PointCloud<pcl::PointXYZ> icp_cloud = robot_pcl_cloud;
+  transePoints(icp_cloud, guess_par);  // 点群を変換
+
+  double alfa = 0.7;  // 平滑化の係数
+  robot_pos.x() = robot_pos.x() * alfa + (1 - alfa) * guess_par(0);
+  robot_pos.y() = robot_pos.y() * alfa + (1 - alfa) * guess_par(1);
+  robot_yaw = guess_par(2);
 
   // icp終了
 
   update_robot_pose(robot_pos, robot_yaw);  // ロボットの位置と姿勢を更新
 
   // // map座標系で点群を表示
-  auto ros2_points = std::make_shared<sensor_msgs::msg::PointCloud2>();
-  pcl::toROSMsg(map_pcl_cloud, *ros2_points);
-  ros2_points->header.frame_id = map_frame_id;
-  points_view->publish(*ros2_points);
-  visualize_lines(map_lines);
+  auto robot_look_points = std::make_shared<sensor_msgs::msg::PointCloud2>();
+  auto icp_points = std::make_shared<sensor_msgs::msg::PointCloud2>();
+  pcl::toROSMsg(robot_pcl_cloud, *robot_look_points);
+  pcl::toROSMsg(icp_cloud, *icp_points);
+  robot_look_points->header.frame_id = map_frame_id;
+  icp_points->header.frame_id = map_frame_id;
+  points_view->publish(*robot_look_points);
+  icp_points_view->publish(*icp_points);
+  visualize_line_segs(map_line_segs);
+}
+
+//----------------------
+
+void LocalizationNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::Vector2d> &real_points, Eigen::Vector3d &best_guess_par, double &global_min_cost) {
+  Eigen::Vector3d default_par = default_par_init;  // 各スレッドでコピーを使う
+  Eigen::Vector3d delta_par;
+  Eigen::VectorXd min_R;
+  double pre_norm = 0.0;
+
+  for (int inter = 0; inter < 10; inter++) {
+    std::vector<int> min_line_IDs(real_points.size());
+    std::vector<Eigen::Vector2d> guess_points = real_points;
+    Eigen::VectorXd R(real_points.size());  // 誤差ベクトル
+
+    transePoints(guess_points, default_par);
+    for (size_t i = 0; i < real_points.size(); i++) {
+      int min_line_ID = 0;
+      double min_dist = std::numeric_limits<double>::max();
+      double min_abs_dist = std::numeric_limits<double>::max();
+      for (size_t j = 0; j < map_lines.size(); j++) {
+        double dist = map_lines[j].distance_to(guess_points[i]);
+        if (std::abs(dist) < min_abs_dist) {
+          min_line_ID = j;
+          min_dist = dist;
+          min_abs_dist = std::abs(dist);
+        }
+      }
+      min_line_IDs[i] = min_line_ID;
+      R(i) = min_dist;
+    }
+
+    Eigen::MatrixXd J(real_points.size(), 3);  // ヤコビ行列
+    for (size_t i = 0; i < real_points.size(); ++i) {
+      Eigen::Vector2d N(map_lines[min_line_IDs[i]].dir.y(), -map_lines[min_line_IDs[i]].dir.x());
+      N.normalize();
+      double x = guess_points[i].x();
+      double y = guess_points[i].y();
+      double theta = default_par.z();
+
+      double d_theta = N.x() * (-sin(theta) * x - cos(theta) * y) +
+                       N.y() * (cos(theta) * x - sin(theta) * y);
+      J.row(i) << N.x(), N.y(), d_theta;
+    }
+
+    Eigen::MatrixXd Jt = J.transpose();
+    Eigen::MatrixXd JtJ = Jt * J;
+    Eigen::VectorXd JtR = Jt * R;
+    delta_par = JtJ.ldlt().solve(JtR);
+    default_par += delta_par;
+    min_R = R;
+
+    if (std::abs(pre_norm - delta_par.norm()) < 1e-5)
+      break;
+    pre_norm = delta_par.norm();
+  }
+
+  double cost = min_R.squaredNorm();
+  {
+    std::lock_guard<std::mutex> lock(mtx);  // 排他制御で共有変数更新
+    if (cost < global_min_cost) {
+      global_min_cost = cost;
+      best_guess_par = default_par;
+    }
+  }
+}
+
+//----------------------
+
+Eigen::Vector3d LocalizationNode::do_icp(pcl::PointCloud<pcl::PointXYZ> &point_cloud, std::vector<Line> &lines) {
+  std::vector<Eigen::Vector2d> target_points;
+  for (const auto &point : point_cloud.points) {
+    target_points.emplace_back(point.x, point.y);
+  }
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<double> num_dis(-1.0, 1.0);
+  std::uniform_real_distribution<double> angle_dis(-M_PI, M_PI);
+
+  Eigen::Vector3d delta_par;
+  Eigen::VectorXd min_R;
+  Eigen::Vector3d guess_par = {0.0, 0.0, 0.0};
+  Eigen::Vector3d guess_guess_par(0.0, 4.75, 0.0);  // 初期値
+  double min_cost = std::numeric_limits<double>::max();
+  for (int inter = 0; inter < 30; inter++) {
+    Eigen::Vector3d guess_guess_par(robot_pos.x() + num_dis(gen), robot_pos.y() + num_dis(gen), normalize_angle(robot_yaw + angle_dis(gen)));  // 初期値
+    threads.push_back(std::thread([this, &guess_guess_par, &target_points, &guess_par, &min_cost]() { this->ICP(guess_guess_par, target_points, guess_par, min_cost); }));
+  }
+  for (std::thread &t : threads) {
+    t.join();
+  }
+  threads.clear();
+
+  return guess_par;  // 最適化されたパラメータを返す
 }
 
 void LocalizationNode::transePoints(std::vector<Eigen::Vector2d> &points, Eigen::Vector3d par) {
   Eigen::Vector2d tra = {par(0), par(1)};
   Eigen::Matrix2d R = getR(par(2));
   for (size_t i = 0; i < points.size(); i++) {
-    points[i] = R * (points[i] + tra);  // 移動してから回転
+    points[i] = R * points[i] + tra;
   }
 }
 
-void LocalizationNode::remove_outlier(pcl::PointCloud<pcl::PointXYZ> &target_cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, double threshold) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<int> dis(0, target_cloud.size() - 1);
-  std::vector<std::pair<Eigen::Vector2d, bool>> cloud_v;
-  for (size_t i = 0; i < target_cloud.points.size(); i++) {
-    cloud_v.emplace_back(Eigen::Vector2d(target_cloud.points[i].x, target_cloud.points[i].y), false);
-  }
-  bool be_line = true;
-  int iterations_num = ITERATION_NUM;
-  while (be_line) {
-    int best_inlier_num = 0;
-    std::vector<int> best_inlier_IDs;
-    for (int i = 0; i < iterations_num; i++) {
-      int guess_1 = dis(gen);
-      int guess_2 = dis(gen);
-      while (guess_1 == guess_2 || cloud_v[guess_1].second)
-        guess_1 = dis(gen);
-      Line guess_line = Line::from_points(cloud_v[guess_1].first, cloud_v[guess_2].first);
-      int inlier_num = 0;
-      std::vector<int> inlier_IDs;
-      for (size_t j = 0; j < cloud_v.size(); j++) {
-        if (!cloud_v[j].second && abs(guess_line.distance_to(cloud_v[j].first)) < threshold) {
-          inlier_num++;
-          inlier_IDs.push_back(j);
-        }
-      }
-      if (best_inlier_num < inlier_num) {
-        best_inlier_num = inlier_num;
-        best_inlier_IDs = inlier_IDs;
-      }
-    }
-    for (int id : best_inlier_IDs) {
-      cloud_out.points.push_back(target_cloud.points[id]);
-      cloud_v[id].second = true;
-    }
-    if (best_inlier_num < (int)cloud_v.size() / 8)  // ここの数字は適当
-      be_line = false;
+void LocalizationNode::transePoints(pcl::PointCloud<pcl::PointXYZ> &points, Eigen::Vector3d par) {
+  Eigen::Vector2d T = {par(0), par(1)};
+  Eigen::Matrix2d R = getR(par(2));
+  for (size_t i = 0; i < points.size(); i++) {
+    Eigen::Vector2d pt(points[i].x, points[i].y);
+    pt = R * pt + T;
+    points[i].x = pt.x();
+    points[i].y = pt.y();
   }
 }
 
@@ -174,6 +250,35 @@ void LocalizationNode::visualize_lines(const std::vector<Line> &lines) {
     p1.z = 0.0;
     p2.x = line.pos.x() + 100.0 * line.dir.x();
     p2.y = line.pos.y() + 100.0 * line.dir.y();
+    p2.z = 0.0;
+    marker.points.push_back(p1);
+    marker.points.push_back(p2);
+  }
+
+  marker_print->publish(marker);
+}
+
+void LocalizationNode::visualize_line_segs(const std::vector<LineSeg> &lines) {
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = map_frame_id;
+  marker.header.stamp = this->now();
+  marker.ns = "line_segs";
+  marker.id = 0;
+  marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+  marker.scale.x = 0.01;  // 線の太さ
+  marker.color.r = 1.0f;
+  marker.color.g = 0.0f;
+  marker.color.b = 0.0f;
+  marker.color.a = 1.0f;
+
+  for (const auto &line : lines) {
+    geometry_msgs::msg::Point p1, p2;
+    p1.x = line.line.pos.x();
+    p1.y = line.line.pos.y();
+    p1.z = 0.0;
+    p2.x = line.line.pos.x() + line.length * line.line.dir.x();
+    p2.y = line.line.pos.y() + line.length * line.line.dir.y();
     p2.z = 0.0;
     marker.points.push_back(p1);
     marker.points.push_back(p2);

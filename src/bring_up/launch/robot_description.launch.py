@@ -9,7 +9,7 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     models_dir = get_package_share_directory("bring_up")
-    urdf = os.path.join(models_dir, "urdf", "robot.urdf")
+    urdf = os.path.join(models_dir, "urdf", "robot.urdf.xml")
 
     with open(urdf, 'r') as infp:
         robot_desc = infp.read()
