@@ -154,7 +154,7 @@ def generate_launch_description():
     )
 
     delayed_load_1 = TimerAction(
-        period=2.0,
+        period=1.0,
         actions=[
             ComposableNodeContainer(
                 name='points_processer_container',
@@ -174,6 +174,21 @@ def generate_launch_description():
                             'merged_topic_name': merged_lidar_topic,
                             'merged_frame_id': robot_frame_id,
                         }],),
+                ]
+            ),
+        ]
+    )
+
+    delayed_load_2 = TimerAction(
+        period=2.0,
+        actions=[
+            ComposableNodeContainer(
+                name='points_processer_container',
+                namespace='wtf2025',
+                package='rclcpp_components',
+                executable='component_container',
+                output='screen',
+                composable_node_descriptions=[
                     ComposableNode(
                         package='localization',
                         plugin='Localization::LocalizationNode',
@@ -186,7 +201,7 @@ def generate_launch_description():
                             'odom_frame_id': odom_frame_id,
                     }])
                 ]
-            ),
+            )
         ]
     )
 
@@ -199,5 +214,6 @@ def generate_launch_description():
         moter_bridge,lidar_bridge,
         basic_run,joy_node,
         delayed_load_1,
+        delayed_load_2,
         ]
     )

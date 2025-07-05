@@ -4,10 +4,8 @@
 
 namespace Localization {
 
-double normalize_angle(double angle) {
-  while (angle > M_PI) angle -= 2.0 * M_PI;
-  while (angle <= -M_PI) angle += 2.0 * M_PI;
-  return angle;
+inline double normalize_angle(double angle) {
+  return std::atan2(std::sin(angle), std::cos(angle));
 }
 
 Eigen::Matrix2d getR(double theta) {
@@ -29,8 +27,11 @@ double Line::distance_to(const Eigen::Vector2d &p) const {
 double LineSeg::distance_to(const Eigen::Vector2d &point) {
   Eigen::Vector2d v = point - line.pos;
   double t = v.dot(line.dir);
-  if (t < 0 || length < t) {
-    return std::numeric_limits<double>::max();
+  if (t < 0) {
+    return (point - line.pos).norm();
+  }
+  if (t > length) {
+    return (point - (line.pos + line.dir * length)).norm();
   }
   return line.distance_to(point);
 }
@@ -72,13 +73,21 @@ void LocalizationNode::topic_callback(const sensor_msgs::msg::PointCloud2::Share
   // remove_outlier(robot_pcl_cloud, clean_cloud, 0.015);  // 外れ値を除外
 
   // icp開始
-  Eigen::Vector3d guess_par = do_icp(robot_pcl_cloud, map_lines);
+  // Eigen::Vector3d guess_par = {0.0, 4.75, M_PI / 2.0};  // 初期値
+  Eigen::Vector3d guess_par = do_icp(robot_pcl_cloud);
+  Eigen::Vector3d pre_par(robot_pos.x(), robot_pos.y(), robot_yaw);  // 前回の推定値
+  // if ((guess_par - pre_par).norm() > 1.0) {
+  //   guess_par = pre_par;
+  // } else {
+  //   guess_par.z() = normalize_angle(guess_par.z());  // 角度を正規化
+  // }
+  // RCLCPP_INFO(this->get_logger(), "%f", test_delta_theta);
   RCLCPP_INFO(this->get_logger(), "ICP guess parameters: x: %f, y: %f, theta: %f", guess_par(0), guess_par(1), guess_par(2));
 
   pcl::PointCloud<pcl::PointXYZ> icp_cloud = robot_pcl_cloud;
   transePoints(icp_cloud, guess_par);  // 点群を変換
 
-  double alfa = 0.7;  // 平滑化の係数
+  double alfa = 0.0;  // 平滑化の係数
   robot_pos.x() = robot_pos.x() * alfa + (1 - alfa) * guess_par(0);
   robot_pos.y() = robot_pos.y() * alfa + (1 - alfa) * guess_par(1);
   robot_yaw = guess_par(2);
@@ -105,20 +114,20 @@ void LocalizationNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::
   Eigen::Vector3d default_par = default_par_init;  // 各スレッドでコピーを使う
   Eigen::Vector3d delta_par;
   Eigen::VectorXd min_R;
-  double pre_norm = 0.0;
 
   for (int inter = 0; inter < 10; inter++) {
     std::vector<int> min_line_IDs(real_points.size());
     std::vector<Eigen::Vector2d> guess_points = real_points;
-    Eigen::VectorXd R(real_points.size());  // 誤差ベクトル
+    Eigen::VectorXd R;
+    R.resize(real_points.size());
 
     transePoints(guess_points, default_par);
     for (size_t i = 0; i < real_points.size(); i++) {
       int min_line_ID = 0;
       double min_dist = std::numeric_limits<double>::max();
       double min_abs_dist = std::numeric_limits<double>::max();
-      for (size_t j = 0; j < map_lines.size(); j++) {
-        double dist = map_lines[j].distance_to(guess_points[i]);
+      for (size_t j = 0; j < map_line_segs.size(); j++) {
+        double dist = map_line_segs[j].distance_to(guess_points[i]);
         if (std::abs(dist) < min_abs_dist) {
           min_line_ID = j;
           min_dist = dist;
@@ -131,7 +140,7 @@ void LocalizationNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::
 
     Eigen::MatrixXd J(real_points.size(), 3);  // ヤコビ行列
     for (size_t i = 0; i < real_points.size(); ++i) {
-      Eigen::Vector2d N(map_lines[min_line_IDs[i]].dir.y(), -map_lines[min_line_IDs[i]].dir.x());
+      Eigen::Vector2d N(map_line_segs[min_line_IDs[i]].line.dir.y(), -map_line_segs[min_line_IDs[i]].line.dir.x());
       N.normalize();
       double x = guess_points[i].x();
       double y = guess_points[i].y();
@@ -146,18 +155,20 @@ void LocalizationNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::
     Eigen::MatrixXd JtJ = Jt * J;
     Eigen::VectorXd JtR = Jt * R;
     delta_par = JtJ.ldlt().solve(JtR);
+    delta_par(2) = normalize_angle(delta_par(2));
     default_par += delta_par;
+    default_par(2) = normalize_angle(default_par(2));
     min_R = R;
-
-    if (std::abs(pre_norm - delta_par.norm()) < 1e-5)
-      break;
-    pre_norm = delta_par.norm();
   }
 
   double cost = min_R.squaredNorm();
   {
     std::lock_guard<std::mutex> lock(mtx);  // 排他制御で共有変数更新
-    if (cost < global_min_cost) {
+    double dx = default_par_init.x() - default_par.x();
+    double dy = default_par_init.y() - default_par.y();
+    double dtheta = normalize_angle(default_par_init.z() - default_par.z());
+    double pose_diff = std::sqrt(dx * dx + dy * dy + dtheta * dtheta);
+    if (cost < global_min_cost) {  // 位置が大きく変化していない場合のみ更新
       global_min_cost = cost;
       best_guess_par = default_par;
     }
@@ -166,22 +177,22 @@ void LocalizationNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::
 
 //----------------------
 
-Eigen::Vector3d LocalizationNode::do_icp(pcl::PointCloud<pcl::PointXYZ> &point_cloud, std::vector<Line> &lines) {
+Eigen::Vector3d LocalizationNode::do_icp(pcl::PointCloud<pcl::PointXYZ> &point_cloud) {
   std::vector<Eigen::Vector2d> target_points;
   for (const auto &point : point_cloud.points) {
     target_points.emplace_back(point.x, point.y);
   }
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> num_dis(-1.0, 1.0);
-  std::uniform_real_distribution<double> angle_dis(-M_PI, M_PI);
+  std::uniform_real_distribution<double> num_dis(-0.5, 0.5);
+  std::uniform_real_distribution<double> angle_dis(-0.0, M_PI);
 
   Eigen::Vector3d delta_par;
   Eigen::VectorXd min_R;
-  Eigen::Vector3d guess_par = {0.0, 0.0, 0.0};
-  Eigen::Vector3d guess_guess_par(0.0, 4.75, 0.0);  // 初期値
+  Eigen::Vector3d guess_par;
   double min_cost = std::numeric_limits<double>::max();
-  for (int inter = 0; inter < 30; inter++) {
+  double ran_angle = 0.0;
+  for (int inter = 0; inter < 50; inter++) {
     Eigen::Vector3d guess_guess_par(robot_pos.x() + num_dis(gen), robot_pos.y() + num_dis(gen), normalize_angle(robot_yaw + angle_dis(gen)));  // 初期値
     threads.push_back(std::thread([this, &guess_guess_par, &target_points, &guess_par, &min_cost]() { this->ICP(guess_guess_par, target_points, guess_par, min_cost); }));
   }

@@ -45,7 +45,7 @@ class LocalizationNode : public rclcpp::Node {
  private:
   void topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_ptr);
   void remove_outlier(pcl::PointCloud<pcl::PointXYZ> &target_cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, double threshold);  // ransacを使って直線状になっている点のみにする
-  Eigen::Vector3d do_icp(pcl::PointCloud<pcl::PointXYZ> &point_cloud, std::vector<Line> &lines);
+  Eigen::Vector3d do_icp(pcl::PointCloud<pcl::PointXYZ> &point_cloud);
   void ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::Vector2d> &real_points, Eigen::Vector3d &best_guess_par, double &global_min_cost);  // point to planesを使用
   void update_robot_pose(Eigen::Vector2d &robot_pos, double &robot_yaw);
   void transePoints(std::vector<Eigen::Vector2d> &points, Eigen::Vector3d par);
@@ -67,8 +67,9 @@ class LocalizationNode : public rclcpp::Node {
       LineSeg(Eigen::Vector2d(-0.500, 0.0), Eigen::Vector2d(1, 0), 6.800),
       LineSeg(Eigen::Vector2d(-0.500, 0), Eigen::Vector2d(0, 1), 5.250),
       LineSeg(Eigen::Vector2d(-0.500, 5.250), Eigen::Vector2d(1, 0), 10.500),
-      LineSeg(Eigen::Vector2d(10.000, 5.250), Eigen::Vector2d(0, -1), 5.025),
-      LineSeg(Eigen::Vector2d(6.300, 0.225), Eigen::Vector2d(1, 0), 3.700),
+      LineSeg(Eigen::Vector2d(10.000, 5.250), Eigen::Vector2d(0, -1), 4.025),
+      LineSeg(Eigen::Vector2d(6.300, 1.225), Eigen::Vector2d(1, 0), 3.700),
+      LineSeg(Eigen::Vector2d(6.300, 1.225), Eigen::Vector2d(0, -1), 1.225),
   };  // 地図上の直線
   Eigen::Vector2d robot_pos = Eigen::Vector2d(0.0, 4.75);  // ロボットの位置
   double robot_yaw = 0.0;                                  // ロボットの位置と姿勢
@@ -77,6 +78,8 @@ class LocalizationNode : public rclcpp::Node {
   std::string merged_frame_id;
   std::string map_frame_id;
   int ITERATION_NUM = 100;
+
+  double test_delta_theta = 0.0;
 
   std::mutex mtx;
   std::vector<std::thread> threads;

@@ -13,7 +13,7 @@ WheelCon::WheelCon(const rclcpp::NodeOptions& options) : rclcpp::Node("wheels_co
 void WheelCon::topic_callback(const sensor_msgs::msg::Joy& msg) {
   float lx = msg.axes[0];
   float ly = msg.axes[1];
-  float rx = msg.axes[3];
+  float rx = -msg.axes[3];
   float direction = atan2(ly, lx) + M_PI * 3.0 / 2.0;
   if (direction > M_PI)
     direction -= M_PI * 2.0;
