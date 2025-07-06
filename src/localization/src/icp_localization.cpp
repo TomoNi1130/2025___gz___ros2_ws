@@ -75,14 +75,14 @@ void LocalizationNode::topic_callback(const sensor_msgs::msg::PointCloud2::Share
   // icp開始
   // Eigen::Vector3d guess_par = {0.0, 4.75, M_PI / 2.0};  // 初期値
   Eigen::Vector3d guess_par = do_icp(robot_pcl_cloud);
-  Eigen::Vector3d pre_par(robot_pos.x(), robot_pos.y(), robot_yaw);  // 前回の推定値
+  // Eigen::Vector3d pre_par(robot_pos.x(), robot_pos.y(), robot_yaw);  // 前回の推定値
   // if ((guess_par - pre_par).norm() > 1.0) {
   //   guess_par = pre_par;
   // } else {
   //   guess_par.z() = normalize_angle(guess_par.z());  // 角度を正規化
   // }
   // RCLCPP_INFO(this->get_logger(), "%f", test_delta_theta);
-  RCLCPP_INFO(this->get_logger(), "ICP guess parameters: x: %f, y: %f, theta: %f", guess_par(0), guess_par(1), guess_par(2));
+  // RCLCPP_INFO(this->get_logger(), "ICP guess parameters: x: %f, y: %f, theta: %f", guess_par(0), guess_par(1), guess_par(2));
 
   pcl::PointCloud<pcl::PointXYZ> icp_cloud = robot_pcl_cloud;
   transePoints(icp_cloud, guess_par);  // 点群を変換
@@ -185,21 +185,23 @@ Eigen::Vector3d LocalizationNode::do_icp(pcl::PointCloud<pcl::PointXYZ> &point_c
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_real_distribution<double> num_dis(-0.5, 0.5);
-  std::uniform_real_distribution<double> angle_dis(-0.0, M_PI);
+  std::uniform_real_distribution<double> angle_dis(-M_PI, M_PI);
 
   Eigen::Vector3d delta_par;
   Eigen::VectorXd min_R;
   Eigen::Vector3d guess_par;
   double min_cost = std::numeric_limits<double>::max();
   double ran_angle = 0.0;
-  for (int inter = 0; inter < 50; inter++) {
-    Eigen::Vector3d guess_guess_par(robot_pos.x() + num_dis(gen), robot_pos.y() + num_dis(gen), normalize_angle(robot_yaw + angle_dis(gen)));  // 初期値
+  for (int inter = 0; inter < 80; inter++) {
+    Eigen::Vector3d guess_guess_par(robot_pos.x() + num_dis(gen), robot_pos.y() + num_dis(gen), normalize_angle(robot_yaw + angle_dis(gen) / 2.0));  // 初期値
     threads.push_back(std::thread([this, &guess_guess_par, &target_points, &guess_par, &min_cost]() { this->ICP(guess_guess_par, target_points, guess_par, min_cost); }));
   }
   for (std::thread &t : threads) {
     t.join();
   }
   threads.clear();
+
+  RCLCPP_INFO(this->get_logger(), "%f", min_cost);
 
   return guess_par;  // 最適化されたパラメータを返す
 }

@@ -38,6 +38,25 @@ install(TARGETS localization
         RUNTIME DESTINATION bin
 )
 
+add_library(localization_2 SHARED src/icp_localization_ver2.cpp)
+ament_target_dependencies(localization_2
+  rclcpp rclcpp_components 
+  sensor_msgs
+  tf2 tf2_ros tf2_geometry_msgs tf2_sensor_msgs
+  pcl_ros pcl_conversions
+  visualization_msgs
+)
+
+rclcpp_components_register_node(localization_2 PLUGIN "Localization::ICPNode" EXECUTABLE localization_2_node)
+
+ament_export_targets(export_component)
+install(TARGETS localization_2
+        EXPORT export_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

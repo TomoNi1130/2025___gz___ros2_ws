@@ -191,7 +191,7 @@ def generate_launch_description():
                 composable_node_descriptions=[
                     ComposableNode(
                         package='localization',
-                        plugin='Localization::LocalizationNode',
+                        plugin='Localization::ICPNode',
                         name='localization_node',
                         extra_arguments=[{'use_intra_process_comms': True,}],
                         parameters=[{
