@@ -58,6 +58,10 @@ Visualization Manager:
         All Enabled: true
         left_lidar:
           Value: true
+        map:
+          Value: true
+        odom:
+          Value: true
         right_lidar:
           Value: true
         robot/robot_base/left_lidar:
@@ -72,15 +76,18 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        robot_base:
-          left_lidar:
-            {}
-          right_lidar:
-            {}
-          robot/robot_base/left_lidar:
-            {}
-          robot/robot_base/right_lidar:
-            {}
+        map:
+          {}
+        odom:
+          robot_base:
+            left_lidar:
+              {}
+            right_lidar:
+              {}
+            robot/robot_base/left_lidar:
+              {}
+            robot/robot_base/right_lidar:
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -116,10 +123,23 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        line_segs: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /lines_position
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: robot_base
+    Fixed Frame: odom
     Frame Rate: 29
   Name: root
   Tools:

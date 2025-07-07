@@ -38,7 +38,7 @@ def generate_launch_description():
     right_lidar_topic = "right_lidar"
     merged_lidar_topic = "merged_points"
 
-    robot_rviz = Node(
+    odom_rviz = Node(
         package="rviz2",
         executable="rviz2",
         name="rviz2",
@@ -208,8 +208,8 @@ def generate_launch_description():
     return LaunchDescription(
         args + 
         [
-        robot_rviz,
-        map_rviz,
+        odom_rviz,
+        # map_rviz,
         gz_sim,gz_spawn_robot,robot_description,
         moter_bridge,lidar_bridge,
         basic_run,joy_node,
