@@ -2,6 +2,18 @@
 
 namespace Localization {
 
+double normalize_angle(double angle) {
+  return std::atan2(std::sin(angle), std::cos(angle));
+}
+
+Eigen::Matrix2d getR(double theta) {
+  Eigen::Matrix2d R;
+  double n_theta = theta;
+  R << cos(n_theta), -sin(n_theta),
+      sin(n_theta), cos(n_theta);
+  return R;
+}
+
 double LineSeg::distance_to(const Eigen::Vector2d &p) {
   Eigen::Vector2d v = p - pos;
   double t = v.dot(dir);
@@ -14,10 +26,10 @@ double LineSeg::distance_to(const Eigen::Vector2d &p) {
   return normal.dot(p - pos);
 }
 
-LineSeg LineSeg::transform(Eigen::Vector3d &par) {
-  Eigen::Vector2d T = Eigen::Vector2d(-par.x(), -par.y());
-  Eigen::Rotation2Dd R(par.z());
-  Eigen::Vector2d new_pos = R * (pos + T);
+LineSeg LineSeg::transform(const Eigen::Vector3d &par) {  // odom -> robot
+  Eigen::Rotation2Dd R(-par.z());
+  Eigen::Vector2d t(par.x(), par.y());
+  Eigen::Vector2d new_pos = R * (pos - t);
   Eigen::Vector2d new_dir = R * dir;
   return LineSeg(new_pos, new_dir, length);
 }
@@ -41,6 +53,8 @@ ICPNode::ICPNode(const rclcpp::NodeOptions &options) : Node("ICP_node", options)
   marker_print = this->create_publisher<visualization_msgs::msg::Marker>("lines_position", 10);
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&ICPNode::timer_callback, this));
+
+  robot_pos = Eigen::Vector3d(0.0, 0.0, M_PI * 0.0);  // ロボットの初期位置と姿勢
 }
 
 void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_ptr) {
@@ -53,10 +67,9 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
     robot_cloud.emplace_back(pt.x, pt.y);
   }
 
-  robot_pos = Eigen::Vector3d(5.0, -3.0, M_PI / 2.0);
   std::vector<LineSeg> robot_line_segs;
   for (LineSeg &map_line : map_line_segs) {
-    LineSeg transformed_line = map_line.transform(robot_pos);
+    LineSeg transformed_line = map_line.transform(robot_pos);  // odom -> robot
     robot_line_segs.push_back(transformed_line);
   }
 
@@ -64,26 +77,116 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
 
   Eigen::Vector3d icp_result = do_icp(robot_cloud, robot_line_segs);
 
+  // RCLCPP_INFO(this->get_logger(), "ICP Result: x: %.2f, y: %.2f, theta: %.2f", icp_result.x(), icp_result.y(), icp_result.z());
+  // RCLCPP_INFO(this->get_logger(), "Robot Pos x: %f y: %f yaw: %f", robot_pos.x(), robot_pos.y(), robot_pos.z());
+
+  // ロボットの位置更新
+  RCLCPP_INFO(this->get_logger(), "ICP Result: x: %.2f, y: %.2f, theta: %.2f", icp_result.x(), icp_result.y(), icp_result.z());
+  if (icp_result.squaredNorm() < 1.0)
+    robot_pos += icp_result;
+  // robot_pos.z() = normalize_angle(robot_pos.z());
+
+  std::vector<LineSeg> icp_line_segs;
+
+  for (LineSeg &line_seg : robot_line_segs) {
+    LineSeg transformed_line = line_seg.transform(icp_result);  // robot -> odom
+    icp_line_segs.push_back(transformed_line);
+  }
   visualize_line_segments(robot_line_segs);
+  visualize_line_segments(icp_line_segs);
 }
 
 Eigen::Vector3d ICPNode::do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::vector<LineSeg> &line_segments) {
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> num_dis(-0.5, 0.5);
+  std::uniform_real_distribution<double> num_dis(-0.25, 0.25);
   std::uniform_real_distribution<double> angle_dis(-M_PI, M_PI);
 
   Eigen::Vector3d delta_par;
   Eigen::Vector3d guess_par;
   double min_cost = std::numeric_limits<double>::max();
-  for (int inter = 0; inter < 80; inter++) {
-    Eigen::Vector3d guess_guess_par(robot_pos.x(), robot_pos.y(), robot_pos.z());  // 初期値
-    // threads.push_back(std::thread([this, &guess_guess_par, &point_cloud, &line_segments, &guess_par, &min_cost]() { this->ICP(guess_guess_par, point_cloud, line_segments, guess_par, min_cost); }));
+  for (int inter = 0; inter < 20; inter++) {
+    Eigen::Vector3d guess_guess_par(0.0, 0.0, 0.0);  // 初期値
+    // Eigen::Vector3d guess_guess_par(num_dis(gen), num_dis(gen), angle_dis(gen) / 8.0);  // 初期値
+    threads.push_back(std::thread([this, &guess_guess_par, &point_cloud, &line_segments, &guess_par, &min_cost]() { this->ICP(guess_guess_par, point_cloud, line_segments, guess_par, min_cost); }));
   }
   for (std::thread &t : threads) {
     t.join();
   }
   threads.clear();
+  return guess_par;
+}
+
+//----------------------
+
+void ICPNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::Vector2d> &real_points, std::vector<LineSeg> &line_segs, Eigen::Vector3d &best_guess_par, double &global_min_cost) {
+  Eigen::Vector3d default_par = default_par_init;  // 各スレッドでコピーを使う
+  Eigen::Vector3d delta_par;
+  Eigen::VectorXd min_R;
+
+  for (int inter = 0; inter < 10; inter++) {
+    std::vector<int> min_line_IDs(real_points.size());
+    std::vector<Eigen::Vector2d> guess_points = real_points;
+    Eigen::VectorXd R;
+    R.resize(real_points.size());
+
+    transePoints(guess_points, default_par);
+    for (size_t i = 0; i < real_points.size(); i++) {
+      int min_line_ID = 0;
+      double min_dist = std::numeric_limits<double>::max();
+      double min_abs_dist = std::numeric_limits<double>::max();
+      for (size_t j = 0; j < line_segs.size(); j++) {
+        double dist = line_segs[j].distance_to(guess_points[i]);
+        if (std::abs(dist) < min_abs_dist) {
+          min_line_ID = j;
+          min_dist = dist;
+          min_abs_dist = std::abs(dist);
+        }
+      }
+      min_line_IDs[i] = min_line_ID;
+      R(i) = min_dist;
+    }
+
+    Eigen::MatrixXd J(real_points.size(), 3);  // ヤコビ行列
+    for (size_t i = 0; i < real_points.size(); ++i) {
+      Eigen::Vector2d N(line_segs[min_line_IDs[i]].dir.y(), -line_segs[min_line_IDs[i]].dir.x());
+      N.normalize();
+      double x = guess_points[i].x();
+      double y = guess_points[i].y();
+      double theta = default_par.z();
+
+      double d_theta = N.x() * (-sin(theta) * x - cos(theta) * y) +
+                       N.y() * (cos(theta) * x - sin(theta) * y);
+      J.row(i) << N.x(), N.y(), d_theta;
+    }
+
+    Eigen::MatrixXd Jt = J.transpose();
+    Eigen::MatrixXd JtJ = Jt * J;
+    Eigen::VectorXd JtR = Jt * R;
+    delta_par = JtJ.ldlt().solve(JtR);
+    default_par += delta_par;
+    default_par(2) = normalize_angle(default_par(2));
+    min_R = R;
+  }
+
+  double cost = min_R.squaredNorm();
+  {
+    std::lock_guard<std::mutex> lock(mtx);  // 排他制御で共有変数更新
+    if (cost < global_min_cost) {
+      global_min_cost = cost;
+      best_guess_par = default_par;
+    }
+  }
+}
+
+//----------------------
+
+void ICPNode::transePoints(std::vector<Eigen::Vector2d> &points, Eigen::Vector3d par) {
+  Eigen::Vector2d tra = {par(0), par(1)};
+  Eigen::Matrix2d R = getR(par(2));
+  for (size_t i = 0; i < points.size(); i++) {
+    points[i] = R * points[i] + tra;
+  }
 }
 
 void ICPNode::timer_callback() {
@@ -108,7 +211,6 @@ void ICPNode::visualize_line_segments(std::vector<LineSeg> &line_segments) {
   visualization_msgs::msg::Marker marker;
   marker.header.stamp = cloud_header_.stamp;
   marker.header.frame_id = odom_frame_id;
-  marker.header.stamp = this->now();
   marker.ns = "line_segs";
   marker.id = 0;
   marker.type = visualization_msgs::msg::Marker::LINE_LIST;

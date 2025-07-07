@@ -1,6 +1,7 @@
 
 
 #include <Eigen/Dense>
+#include <mutex>
 #include <random>
 #include <rclcpp/rclcpp.hpp>
 #include <thread>
@@ -26,7 +27,7 @@ struct LineSeg {
   LineSeg(const Eigen::Vector2d &p, const Eigen::Vector2d &d, double l)
       : pos(p), dir(d), length(l) {}
   double distance_to(const Eigen::Vector2d &p);
-  LineSeg transform(Eigen::Vector3d &par);
+  LineSeg transform(const Eigen::Vector3d &par);
 };
 
 class ICPNode : public rclcpp::Node {
@@ -37,6 +38,8 @@ class ICPNode : public rclcpp::Node {
   void topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_ptr);
   void timer_callback();
   Eigen::Vector3d do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::vector<LineSeg> &line_segments);
+  void ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::Vector2d> &real_points, std::vector<LineSeg> &line_segs, Eigen::Vector3d &best_guess_par, double &global_min_cost);
+  void transePoints(std::vector<Eigen::Vector2d> &points, Eigen::Vector3d par);
   void update_robot_pose(Eigen::Vector2d &robot_pos, double &robot_yaw);
 
   void visualize_line_segments(std::vector<LineSeg> &line_segments);
@@ -45,15 +48,16 @@ class ICPNode : public rclcpp::Node {
       LineSeg(Eigen::Vector2d(-0.500, 0.0 - 4.75), Eigen::Vector2d(1, 0), 6.800),
       LineSeg(Eigen::Vector2d(-0.500, 0.0 - 4.75), Eigen::Vector2d(0, 1), 5.250),
       LineSeg(Eigen::Vector2d(-0.500, 5.250 - 4.75), Eigen::Vector2d(1, 0), 10.500),
-      LineSeg(Eigen::Vector2d(10.000, 5.250 - 4.75), Eigen::Vector2d(0, -1), 4.025),
-      LineSeg(Eigen::Vector2d(6.300, 1.225 - 4.75), Eigen::Vector2d(1, 0), 3.700),
-      LineSeg(Eigen::Vector2d(6.300, 1.225 - 4.75), Eigen::Vector2d(0, -1), 1.225),
+      LineSeg(Eigen::Vector2d(10.000, 5.250 - 4.75), Eigen::Vector2d(0, -1), 5.025),
+      LineSeg(Eigen::Vector2d(6.300, 0.225 - 4.75), Eigen::Vector2d(1, 0), 3.700),
+      LineSeg(Eigen::Vector2d(6.300, 0.225 - 4.75), Eigen::Vector2d(0, -1), 0.225),
   };  // 地図上の線分
 
   std::vector<Eigen::Vector2d> robot_cloud;  // ロボから見た点群
   Eigen::Vector3d robot_pos;                 // ロボットの姿勢//{x,y,theta}
   Eigen::Vector3d odom_pos = {0.0, 4.75, 0.0};
 
+  std::mutex mtx;
   std::vector<std::thread> threads;
 
   std::string merged_topic_name;
