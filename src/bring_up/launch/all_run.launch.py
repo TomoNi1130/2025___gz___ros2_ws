@@ -209,7 +209,7 @@ def generate_launch_description():
         args + 
         [
         odom_rviz,
-        # map_rviz,
+        map_rviz,
         gz_sim,gz_spawn_robot,robot_description,
         moter_bridge,lidar_bridge,
         basic_run,joy_node,

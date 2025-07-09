@@ -55,7 +55,10 @@ class ICPNode : public rclcpp::Node {
 
   std::vector<Eigen::Vector2d> robot_cloud;  // ロボから見た点群
   Eigen::Vector3d robot_pos;                 // ロボットの姿勢//{x,y,theta}
+  Eigen::Vector3d new_robot_pos;
   Eigen::Vector3d odom_pos = {0.0, 4.75, 0.0};
+
+  Eigen::Vector2d pre_pos_error;
 
   std::mutex mtx;
   std::vector<std::thread> threads;
