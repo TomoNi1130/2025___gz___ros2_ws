@@ -87,12 +87,10 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
   // robot_pos = {0.0, 0.0, M_PI * 0.5};
 
   pre_pos_error = {icp_result.x(), icp_result.y()};
-
-  robot_pos.z() += icp_result.z();
-  robot_pos.z() = normalize_angle(robot_pos.z());
-
   Eigen::Vector2d pos(icp_result.x(), icp_result.y());
   Eigen::Vector2d new_pos = getR(robot_pos.z()) * pos;
+  robot_pos.z() += icp_result.z();
+  robot_pos.z() = normalize_angle(robot_pos.z());
 
   new_robot_pos = {new_pos.x(), new_pos.y(), robot_pos.z()};
   // RCLCPP_INFO(this->get_logger(), "Robot Pos x: %f y: %f yaw: %f", new_robot_pos.x(), new_robot_pos.y(), new_robot_pos.z());
