@@ -78,8 +78,8 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
 
   // ICPの実行
 
-  remove_outliers(robot_cloud, 0.08, 5, 200);
-  clean_cloud_sub_->publish(Eigen_to_cloud(robot_cloud, cloud_header_));
+  remove_outliers(robot_cloud, 0.08, 5, 200);                             // 大きなハズレ値の除去
+  clean_cloud_sub_->publish(Eigen_to_cloud(robot_cloud, cloud_header_));  // 可視化（なくてもいい）
 
   Eigen::Vector3d icp_result = do_icp(robot_cloud, robot_line_segs);
 

@@ -1,4 +1,5 @@
-
+#ifndef ICP_LOCALIZATION_HPP
+#define ICP_LOCALIZATION_HPP
 
 #include <Eigen/Dense>
 #include <mutex>
@@ -85,3 +86,5 @@ class ICPNode : public rclcpp::Node {
 };
 
 }  // namespace Localization
+
+#endif
