@@ -51,7 +51,7 @@ ICPNode::ICPNode(const rclcpp::NodeOptions &options) : Node("ICP_node", options)
   tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(merged_topic_name, rclcpp::SensorDataQoS{}, std::bind(&ICPNode::topic_callback, this, std::placeholders::_1));
-  map_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("map_cloud", 10);
+  robot_yaw_pub_ = this->create_publisher<std_msgs::msg::Float64>("robot_yaw", 10);
   marker_print = this->create_publisher<visualization_msgs::msg::Marker>("lines_position", 10);
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&ICPNode::timer_callback, this));
@@ -79,29 +79,25 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
 
   Eigen::Vector3d icp_result = do_icp(robot_cloud, robot_line_segs);
 
-  // RCLCPP_INFO(this->get_logger(), "ICP Result: x: %.2f, y: %.2f, theta: %.2f", icp_result.x(), icp_result.y(), icp_result.z());
-
   // ロボットの位置更新
-  // RCLCPP_INFO(this->get_logger(), "ICP Result: x: %f, y: %f, theta: %f", icp_result.x(), icp_result.y(), icp_result.z());
 
-  // robot_pos = {0.0, 0.0, M_PI * 0.5};
+  Eigen::Vector2d pos_error(icp_result.x(), icp_result.y());
+  if (pos_error.norm() < 10.0) {
+    pre_pos_error = pos_error;
+    Eigen::Vector2d pos = pos_error;
+    Eigen::Vector2d new_pos = getR(robot_pos.z()) * pos;
+    robot_pos.z() += icp_result.z();
+    robot_pos.z() = normalize_angle(robot_pos.z());
 
-  pre_pos_error = {icp_result.x(), icp_result.y()};
-  Eigen::Vector2d pos(icp_result.x(), icp_result.y());
-  Eigen::Vector2d new_pos = getR(robot_pos.z()) * pos;
-  robot_pos.z() += icp_result.z();
-  robot_pos.z() = normalize_angle(robot_pos.z());
-
-  new_robot_pos = {new_pos.x(), new_pos.y(), robot_pos.z()};
-  // RCLCPP_INFO(this->get_logger(), "Robot Pos x: %f y: %f yaw: %f", new_robot_pos.x(), new_robot_pos.y(), new_robot_pos.z());
+    new_robot_pos = {new_pos.x(), new_pos.y(), robot_pos.z()};
+  }
   std::vector<LineSeg> icp_line_segs;
 
   for (LineSeg &line_seg : robot_line_segs) {
     LineSeg transformed_line = line_seg.transform(icp_result);  // robot -> odom
     icp_line_segs.push_back(transformed_line);
   }
-  visualize_line_segments(robot_line_segs);
-  visualize_line_segments(icp_line_segs);
+  visualize_line_segments(map_line_segs);
 }
 
 Eigen::Vector3d ICPNode::do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::vector<LineSeg> &line_segments) {
@@ -110,20 +106,16 @@ Eigen::Vector3d ICPNode::do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::
   std::uniform_real_distribution<double> num_dis(-0.25, 0.25);
   std::uniform_real_distribution<double> angle_dis(-M_PI, M_PI);
 
-  Eigen::Vector3d delta_par;
   Eigen::Vector3d guess_par;
   double min_cost = std::numeric_limits<double>::max();
-  // for (int inter = 0; inter < 1; inter++) {
-  Eigen::Vector3d guess_guess_par(pre_pos_error.x(), pre_pos_error.y(), 0.0);  // 初期値
-  // Eigen::Vector3d guess_guess_par(new_robot_pos.x(), new_robot_pos.y(), 0.0);  // 初期値
-  //   // Eigen::Vector3d guess_guess_par(num_dis(gen), num_dis(gen), angle_dis(gen) / 8.0);  // 初期値
-  //   threads.push_back(std::thread([this, &guess_guess_par, &point_cloud, &line_segments, &guess_par, &min_cost]() { this->ICP(guess_guess_par, point_cloud, line_segments, guess_par, min_cost); }));
-  // }
-  // for (std::thread &t : threads) {
-  //   t.join();
-  // }
-  ICP(guess_guess_par, point_cloud, line_segments, guess_par, min_cost);
-  // threads.clear();
+  for (int i = 0; i < 10; i++) {
+    Eigen::Vector3d guess_guess_par(pre_pos_error.x() + num_dis(gen), pre_pos_error.y() + num_dis(gen), 0.0);  // 初期値
+    threads.push_back(std::thread([this, &guess_guess_par, &point_cloud, &line_segments, &guess_par, &min_cost]() { this->ICP(guess_guess_par, point_cloud, line_segments, guess_par, min_cost); }));
+  }
+  for (std::thread &t : threads)
+    t.join();
+  threads.clear();
+
   return guess_par;
 }
 
@@ -201,9 +193,7 @@ void ICPNode::transePoints(std::vector<Eigen::Vector2d> &points, Eigen::Vector3d
 
 void ICPNode::timer_callback() {
   // 初期位置の設定
-  RCLCPP_INFO(this->get_logger(), "Robot Pos x: %f y: %f yaw: %f", new_robot_pos.x(), new_robot_pos.y(), new_robot_pos.z());
-  // Eigen::Vector2d pos(new_robot_pos.x(), new_robot_pos.y());
-  // Eigen::Vector2d new_pos = getR(new_robot_pos.z()) * pos;
+  // RCLCPP_INFO(this->get_logger(), "Robot Pos x: %f y: %f yaw: %f", new_robot_pos.x(), new_robot_pos.y(), new_robot_pos.z());
   geometry_msgs::msg::TransformStamped t;
   t.header.stamp = cloud_header_.stamp;
   t.header.frame_id = map_frame_id;
@@ -218,12 +208,15 @@ void ICPNode::timer_callback() {
   t.transform.rotation.z = q.z();
   t.transform.rotation.w = q.w();
   tf_broadcaster_->sendTransform(t);
+  std_msgs::msg::Float64 msg;
+  msg.data = new_robot_pos.z();
+  robot_yaw_pub_->publish(msg);
 }
 
 void ICPNode::visualize_line_segments(std::vector<LineSeg> &line_segments) {
   visualization_msgs::msg::Marker marker;
   marker.header.stamp = cloud_header_.stamp;
-  marker.header.frame_id = "robot_base";
+  marker.header.frame_id = map_frame_id;
   marker.ns = "line_segs";
   marker.id = 0;
   marker.type = visualization_msgs::msg::Marker::LINE_LIST;

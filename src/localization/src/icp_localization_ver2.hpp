@@ -12,6 +12,7 @@
 #include "pcl/point_types.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/header.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_broadcaster.h"
@@ -71,7 +72,7 @@ class ICPNode : public rclcpp::Node {
   std_msgs::msg::Header cloud_header_;
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_cloud_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr robot_yaw_pub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
   rclcpp::TimerBase::SharedPtr timer_;
 

@@ -13,12 +13,16 @@ class WheelCon : public rclcpp::Node {
 
  private:
   void topic_callback(const sensor_msgs::msg::Joy& msg);
+  void set_robot_yaw(const std_msgs::msg::Float64& msg);
   std::vector<float> omuni_controller(const float& direction, const float& velocity, const float& angular_V);
+
+  double robot_yaw = 0;
 
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr FR_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr FL_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr BR_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr BL_publisher_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr robot_yaw_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr subscription_;
 };
 
