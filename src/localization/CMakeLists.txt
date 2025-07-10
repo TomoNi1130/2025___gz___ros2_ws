@@ -57,6 +57,8 @@ install(TARGETS localization_2
         RUNTIME DESTINATION bin
 )
 
+include_directories(${EIGEN3_INCLUDE_DIR})
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

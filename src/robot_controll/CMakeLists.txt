@@ -15,6 +15,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 add_library(wheel_controll SHARED
    src/wheels_controll.cpp)
@@ -39,6 +40,33 @@ install(TARGETS wheel_controll
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
 )
+
+add_library(set_goal SHARED
+   src/set_goal.cpp)
+
+ament_target_dependencies(set_goal
+  rclcpp
+  rclcpp_components
+  std_msgs
+  sensor_msgs
+  Eigen3
+)
+
+rclcpp_components_register_node(
+    set_goal
+    PLUGIN "set_goal::SetGoal"
+    EXECUTABLE set_goal_node
+)
+
+ament_export_targets(export_component)
+install(TARGETS set_goal
+        EXPORT export_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
+
+include_directories(${EIGEN3_INCLUDE_DIR})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

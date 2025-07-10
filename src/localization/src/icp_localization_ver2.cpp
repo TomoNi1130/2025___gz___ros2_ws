@@ -280,7 +280,6 @@ sensor_msgs::msg::PointCloud2 ICPNode::Eigen_to_cloud(const std::vector<Eigen::V
 
 void ICPNode::timer_callback() {
   // 初期位置の設定
-  // RCLCPP_INFO(this->get_logger(), "Robot Pos x: %f y: %f yaw: %f", new_robot_pos.x(), new_robot_pos.y(), new_robot_pos.z());
   geometry_msgs::msg::TransformStamped t;
   t.header.stamp = cloud_header_.stamp;
   t.header.frame_id = map_frame_id;

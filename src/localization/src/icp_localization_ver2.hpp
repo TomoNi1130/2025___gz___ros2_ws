@@ -4,7 +4,6 @@
 #include <Eigen/Dense>
 #include <mutex>
 #include <random>
-#include <rclcpp/rclcpp.hpp>
 #include <thread>
 #include <vector>
 
@@ -12,6 +11,7 @@
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "pcl_conversions/pcl_conversions.h"
+#include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/header.hpp"
