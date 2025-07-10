@@ -52,6 +52,7 @@ ICPNode::ICPNode(const rclcpp::NodeOptions &options) : Node("ICP_node", options)
 
   subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(merged_topic_name, rclcpp::SensorDataQoS{}, std::bind(&ICPNode::topic_callback, this, std::placeholders::_1));
   robot_yaw_pub_ = this->create_publisher<std_msgs::msg::Float64>("robot_yaw", 10);
+  clean_cloud_sub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("clean_cloud", 10);
   marker_print = this->create_publisher<visualization_msgs::msg::Marker>("lines_position", 10);
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&ICPNode::timer_callback, this));
@@ -77,6 +78,9 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
 
   // ICPの実行
 
+  remove_outliers(robot_cloud, 0.08, 5, 200);
+  clean_cloud_sub_->publish(Eigen_to_cloud(robot_cloud, cloud_header_));
+
   Eigen::Vector3d icp_result = do_icp(robot_cloud, robot_line_segs);
 
   // ロボットの位置更新
@@ -98,6 +102,66 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
     icp_line_segs.push_back(transformed_line);
   }
   visualize_line_segments(map_line_segs);
+}
+
+void ICPNode::remove_outliers(std::vector<Eigen::Vector2d> &target_cloud, const double threshold, const int max_line_num, const int max_iterations) {
+  struct ransac_line {
+    Eigen::Vector2d pos, dir;
+    ransac_line(Eigen::Vector2d &pos, Eigen::Vector2d &dir) : pos(pos), dir(dir) {}
+    double distance_to(const Eigen::Vector2d &p) const {
+      Eigen::Vector2d v = p - pos;
+      return std::abs(dir.x() * v.y() - dir.y() * v.x()) / dir.norm();
+    }
+  };
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  int cloud_size = target_cloud.size();
+  if (cloud_size == 0)
+    return;
+  std::uniform_int_distribution<int> ID_dis(0, cloud_size - 1);
+  std::vector<bool> inlierbools(cloud_size, false);
+  for (int line_num = 0; line_num < max_line_num; line_num++) {
+    int best_inlier_count = 0;
+    std::vector<int> best_inlierIDs;
+    for (int i = 0; i < max_iterations; i++) {
+      int guess_1 = ID_dis(gen);
+      int guess_2 = ID_dis(gen);
+      while (guess_1 == guess_2 || inlierbools[guess_1] == true || inlierbools[guess_2] == true) {
+        guess_1 = ID_dis(gen);
+        guess_2 = ID_dis(gen);
+      }
+      ransac_line guess_line(target_cloud[guess_1], target_cloud[guess_2]);
+      threads.push_back(std::thread([this, guess_line, threshold, cloud_size, &target_cloud, &inlierbools, &best_inlier_count, &best_inlierIDs]() {
+        std::vector<int> inlierIDs;
+        int inlier_count = 0;
+        for (int pointID = 0; pointID < cloud_size; pointID++) {
+          if (guess_line.distance_to(target_cloud[pointID]) < threshold && inlierbools[pointID] != true) {
+            inlierIDs.push_back(pointID);
+            inlier_count++;
+          }
+        }
+        std::lock_guard<std::mutex> lock(mtx);
+        if (inlier_count > best_inlier_count && inlier_count > cloud_size / 8.0) {
+          best_inlier_count = inlier_count;
+          best_inlierIDs = inlierIDs;
+        }
+      }));
+    }
+    for (std::thread &t : threads)
+      t.join();
+    threads.clear();
+    for (int i = 0; i < best_inlier_count; i++) {
+      inlierbools[best_inlierIDs[i]] = true;
+    }
+  }
+  std::vector<Eigen::Vector2d> clean_cloud;
+  for (int i = 0; i < cloud_size; i++) {
+    if (inlierbools[i]) {
+      clean_cloud.push_back(target_cloud[i]);
+    }
+  }
+  target_cloud.clear();
+  target_cloud = clean_cloud;
 }
 
 Eigen::Vector3d ICPNode::do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::vector<LineSeg> &line_segments) {
@@ -171,7 +235,7 @@ void ICPNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::Vector2d>
     min_R = R;
   }
 
-  double cost = min_R.squaredNorm();
+  double cost = min_R.array().abs().sum();  // 多少のハズレ値を無視できるようにしたいので二乗しない
   {
     std::lock_guard<std::mutex> lock(mtx);  // 排他制御で共有変数更新
     if (cost < global_min_cost) {
@@ -189,6 +253,29 @@ void ICPNode::transePoints(std::vector<Eigen::Vector2d> &points, Eigen::Vector3d
   for (size_t i = 0; i < points.size(); i++) {
     points[i] = R * points[i] + tra;
   }
+}
+
+sensor_msgs::msg::PointCloud2 ICPNode::Eigen_to_cloud(const std::vector<Eigen::Vector2d> &points, const std_msgs::msg::Header &header) {
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  cloud_msg.header = header;
+  cloud_msg.height = 1;
+  cloud_msg.width = points.size();
+  cloud_msg.is_dense = true;
+  cloud_msg.is_bigendian = false;
+  sensor_msgs::PointCloud2Modifier modifier(cloud_msg);
+  modifier.setPointCloud2FieldsByString(1, "xyz");
+  sensor_msgs::PointCloud2Iterator<float> iter_x(cloud_msg, "x");
+  sensor_msgs::PointCloud2Iterator<float> iter_y(cloud_msg, "y");
+  sensor_msgs::PointCloud2Iterator<float> iter_z(cloud_msg, "z");
+  for (const auto &pt : points) {
+    *iter_x = pt.x();
+    *iter_y = pt.y();
+    *iter_z = 0.0f;
+    ++iter_x;
+    ++iter_y;
+    ++iter_z;
+  }
+  return cloud_msg;
 }
 
 void ICPNode::timer_callback() {

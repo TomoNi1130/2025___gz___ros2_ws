@@ -38,10 +38,12 @@ class ICPNode : public rclcpp::Node {
  private:
   void topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_ptr);
   void timer_callback();
+  void remove_outliers(std::vector<Eigen::Vector2d> &target_cloud, const double threshold, const int max_line_num, const int max_iterations);
   Eigen::Vector3d do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::vector<LineSeg> &line_segments);
   void ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::Vector2d> &real_points, std::vector<LineSeg> &line_segs, Eigen::Vector3d &best_guess_par, double &global_min_cost);
   void transePoints(std::vector<Eigen::Vector2d> &points, Eigen::Vector3d par);
   void update_robot_pose(Eigen::Vector2d &robot_pos, double &robot_yaw);
+  sensor_msgs::msg::PointCloud2 Eigen_to_cloud(const std::vector<Eigen::Vector2d> &points, const std_msgs::msg::Header &header);
 
   void visualize_line_segments(std::vector<LineSeg> &line_segments);
 
@@ -73,6 +75,7 @@ class ICPNode : public rclcpp::Node {
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr robot_yaw_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr clean_cloud_sub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
   rclcpp::TimerBase::SharedPtr timer_;
 
