@@ -62,7 +62,7 @@ class ICPNode : public rclcpp::Node {
   Eigen::Vector3d new_robot_pos;
   Eigen::Vector3d odom_pos = {0.0, 4.75, 0.0};
 
-  Eigen::Vector2d pre_pos_error;
+  Eigen::Vector2d pre_robot_pos;
 
   std::mutex mtx;
   std::vector<std::thread> threads;

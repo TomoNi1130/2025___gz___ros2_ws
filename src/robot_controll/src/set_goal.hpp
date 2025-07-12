@@ -3,8 +3,15 @@
 
 #include <Eigen/Dense>
 
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "interface/msg/move_msg.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
+#include "visualization_msgs/msg/marker.hpp"
 
 namespace set_goal {
 
@@ -14,17 +21,35 @@ class SetGoal : public rclcpp::Node {
 
  private:
   void topic_callback(const sensor_msgs::msg::Joy& msg);
-  void timer_callback();
+  void goal_pos_callback(const geometry_msgs::msg::PoseStamped& msg);
+  void send_goal();
+  void get_tf();
 
   bool auto_mode = false;
 
   double robot_yaw = 0;
-  Eigen::Vector2d robot_pos;
+  double goal_yaw;
+  Eigen::Vector2d map_to_goal;
+  Eigen::Vector2d map_to_robot;
 
-  Eigen::Vector2d target_dir, target_speed;
+  double target_dir;
+  double target_roat;
+  double target_power;
+
+  std::string robot_frame_id_;
+  std::string odom_frame_id_;
+  std::string map_frame_id_;
+
+  geometry_msgs::msg::TransformStamped robot_stramp;
 
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr subscription_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pos_subscription_;
+  rclcpp::Publisher<interface::msg::MoveMsg>::SharedPtr move_nums_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
+  rclcpp::TimerBase::SharedPtr timer_1;
+  rclcpp::TimerBase::SharedPtr timer_2;
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 };
 
 }  // namespace set_goal

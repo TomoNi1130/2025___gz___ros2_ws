@@ -141,6 +141,8 @@ def generate_launch_description():
                 parameters=[{
                     'use_sim_time' : use_sim_time,
                     'robot_frame_id': robot_frame_id,
+                    'odom_frame_id': odom_frame_id,
+                    'map_frame_id': map_frame_id,
                     'left_lidar_frame_id': f'robot/{robot_frame_id}/{left_lidar_frame_id}',
                     'right_lidar_frame_id': f'robot/{robot_frame_id}/{right_lidar_frame_id}',
                 }],
@@ -149,6 +151,17 @@ def generate_launch_description():
                 plugin='wheels_controll::WheelCon',
                 name='wheels_controll_node',
                 extra_arguments=[{'use_intra_process_comms': True}],
+            ),ComposableNode(
+                package='robot_controll',
+                plugin='set_goal::SetGoal',
+                name='set_goal_node',
+                extra_arguments=[{'use_intra_process_comms': True}],
+                parameters=[{
+                    'use_sim_time' : use_sim_time,
+                    'robot_frame_id': robot_frame_id,
+                    'odom_frame_id': odom_frame_id,
+                    'map_frame_id': map_frame_id,
+                }],
             )
         ]
     )

@@ -15,7 +15,11 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(interface REQUIRED)
 
 add_library(wheel_controll SHARED
    src/wheels_controll.cpp)
@@ -25,6 +29,7 @@ ament_target_dependencies(wheel_controll
   rclcpp_components
   std_msgs
   sensor_msgs
+  interface
 )
 
 rclcpp_components_register_node(
@@ -49,7 +54,10 @@ ament_target_dependencies(set_goal
   rclcpp_components
   std_msgs
   sensor_msgs
+  tf2 tf2_ros
   Eigen3
+  visualization_msgs
+  interface
 )
 
 rclcpp_components_register_node(

@@ -85,16 +85,18 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
 
   // ロボットの位置更新
 
-  Eigen::Vector2d pos_error(icp_result.x(), icp_result.y());
-  if (pos_error.norm() < 10.0) {
-    pre_pos_error = pos_error;
-    Eigen::Vector2d pos = pos_error;
+  Eigen::Vector2d robot_pos_v(icp_result.x(), icp_result.y());
+  Eigen::Vector2d pos_error = pre_robot_pos - robot_pos_v;
+  pre_robot_pos = robot_pos_v;
+  if (pos_error.norm() < 4.0) {
+    Eigen::Vector2d pos = robot_pos_v;
     Eigen::Vector2d new_pos = getR(robot_pos.z()) * pos;
     robot_pos.z() += icp_result.z();
     robot_pos.z() = normalize_angle(robot_pos.z());
 
     new_robot_pos = {new_pos.x(), new_pos.y(), robot_pos.z()};
   }
+
   std::vector<LineSeg> icp_line_segs;
 
   for (LineSeg &line_seg : robot_line_segs) {
@@ -173,7 +175,7 @@ Eigen::Vector3d ICPNode::do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::
   Eigen::Vector3d guess_par;
   double min_cost = std::numeric_limits<double>::max();
   for (int i = 0; i < 10; i++) {
-    Eigen::Vector3d guess_guess_par(pre_pos_error.x() + num_dis(gen), pre_pos_error.y() + num_dis(gen), 0.0);  // 初期値
+    Eigen::Vector3d guess_guess_par(pre_robot_pos.x() + num_dis(gen), pre_robot_pos.y() + num_dis(gen), 0.0);  // 初期値
     threads.push_back(std::thread([this, &guess_guess_par, &point_cloud, &line_segments, &guess_par, &min_cost]() { this->ICP(guess_guess_par, point_cloud, line_segments, guess_par, min_cost); }));
   }
   for (std::thread &t : threads)
@@ -282,8 +284,8 @@ void ICPNode::timer_callback() {
   // 初期位置の設定
   geometry_msgs::msg::TransformStamped t;
   t.header.stamp = cloud_header_.stamp;
-  t.header.frame_id = map_frame_id;
-  t.child_frame_id = odom_frame_id;
+  t.header.frame_id = odom_frame_id;
+  t.child_frame_id = merged_frame_id;
   t.transform.translation.x = new_robot_pos.x();
   t.transform.translation.y = new_robot_pos.y();
   t.transform.translation.z = 0.0;
@@ -302,7 +304,7 @@ void ICPNode::timer_callback() {
 void ICPNode::visualize_line_segments(std::vector<LineSeg> &line_segments) {
   visualization_msgs::msg::Marker marker;
   marker.header.stamp = cloud_header_.stamp;
-  marker.header.frame_id = map_frame_id;
+  marker.header.frame_id = odom_frame_id;
   marker.ns = "line_segs";
   marker.id = 0;
   marker.type = visualization_msgs::msg::Marker::LINE_LIST;
