@@ -56,15 +56,36 @@ void SetGoal::goal_pos_callback(const geometry_msgs::msg::PoseStamped& msg) {
 
 void SetGoal::send_goal() {
   if (auto_mode) {
-    Eigen::Vector2d v = getR(-robot_yaw) * (map_to_goal - map_to_robot);
-    target_roat = std::max(-1.0, std::min(normalize_angle(goal_yaw - robot_yaw) / M_PI * 3.0, 1.0));
-    v.normalize();
-    Eigen::Vector2d n_v;
-    n_v.x() = (v.x() / abs(v.x())) * v.x() * v.x();
-    n_v.y() = (v.y() / abs(v.y())) * v.y() * v.y();
-    n_v.normalize();
-    target_dir = atan2(n_v.y(), n_v.x());
-    target_power = std::min((map_to_goal - map_to_robot).norm() / 4.0, 0.6);
+    Eigen::Vector2d robot_to_goal = getR(-robot_yaw) * (map_to_goal - map_to_robot);
+    double goal_dis = robot_to_goal.norm();
+    double x_dis = robot_to_goal.x();
+    double y_dis = robot_to_goal.y();
+    //  角速度のPD (角度の差)
+    double angle_error = normalize_angle(goal_yaw - robot_yaw);
+
+    double deriv_angle = (angle_error - pre_angle_error) / 0.1;
+    double output_angle = angle_error * ang_gain.P + deriv_angle * ang_gain.D;
+    pre_angle_error = angle_error;
+
+    target_roat = output_angle;
+
+    // 進行方向のPD (x,y各軸のゴールまでの距離)
+    // x
+    double deriv_x = (x_dis - pre_x_dis) / 0.1;
+    double output_x = x_dis * dir_gain.P + deriv_x * dir_gain.D;
+    pre_x_dis = x_dis;
+    // y
+    double deriv_y = (y_dis - pre_y_dis) / 0.1;
+    double output_y = y_dis * dir_gain.P + deriv_y * dir_gain.D;
+    pre_y_dis = y_dis;
+
+    target_dir = atan2(output_y, output_x);
+
+    // 速度のPD (ゴールまでの距離から)
+    double deriv_vel = (goal_dis - pre_goal_dis) / 0.1;
+    double output_vel = vel_gain.P * goal_dis + vel_gain.D * deriv_vel;
+    pre_goal_dis = goal_dis;
+    target_power = std::min(output_vel, 1.0);
   }
   interface::msg::MoveMsg send_data;
   send_data.direction = target_dir;

@@ -25,12 +25,25 @@ class SetGoal : public rclcpp::Node {
   void send_goal();
   void get_tf();
 
+  struct PDgain {
+    double P, D;
+  };
+
+  PDgain ang_gain = {0.4, 0.1};
+  PDgain vel_gain = {0.45, 0.1};
+  PDgain dir_gain = {0.7, 0.4};
+
   bool auto_mode = false;
 
   double robot_yaw = 0;
   double goal_yaw;
   Eigen::Vector2d map_to_goal;
   Eigen::Vector2d map_to_robot;
+
+  double pre_goal_dis = 0;
+  double pre_x_dis = 0;
+  double pre_y_dis = 0;
+  double pre_angle_error = 0;
 
   double target_dir;
   double target_roat;

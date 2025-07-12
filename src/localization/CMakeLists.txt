@@ -13,9 +13,10 @@ find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_sensor_msgs REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
-find_package(tf2_sensor_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
 add_library(localization SHARED src/icp_localization.cpp)
@@ -44,6 +45,7 @@ ament_target_dependencies(localization_2
   sensor_msgs
   tf2 tf2_ros tf2_geometry_msgs tf2_sensor_msgs
   pcl_ros pcl_conversions
+  Eigen3
   visualization_msgs
 )
 

@@ -78,7 +78,7 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
 
   // ICPの実行
 
-  remove_outliers(robot_cloud, 0.08, 5, 200);                             // 大きなハズレ値の除去
+  remove_outliers(robot_cloud, 0.1, 4, 100);                              // 大きなハズレ値の除去
   clean_cloud_sub_->publish(Eigen_to_cloud(robot_cloud, cloud_header_));  // 可視化（なくてもいい）
 
   Eigen::Vector3d icp_result = do_icp(robot_cloud, robot_line_segs);
@@ -174,7 +174,7 @@ Eigen::Vector3d ICPNode::do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::
 
   Eigen::Vector3d guess_par;
   double min_cost = std::numeric_limits<double>::max();
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 5; i++) {
     Eigen::Vector3d guess_guess_par(pre_robot_pos.x() + num_dis(gen), pre_robot_pos.y() + num_dis(gen), 0.0);  // 初期値
     threads.push_back(std::thread([this, &guess_guess_par, &point_cloud, &line_segments, &guess_par, &min_cost]() { this->ICP(guess_guess_par, point_cloud, line_segments, guess_par, min_cost); }));
   }
@@ -192,7 +192,7 @@ void ICPNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::Vector2d>
   Eigen::Vector3d delta_par;
   Eigen::VectorXd min_R;
 
-  for (int inter = 0; inter < 10; inter++) {
+  for (int inter = 0; inter < 8; inter++) {
     std::vector<int> min_line_IDs(real_points.size());
     std::vector<Eigen::Vector2d> guess_points = real_points;
     Eigen::VectorXd R;
