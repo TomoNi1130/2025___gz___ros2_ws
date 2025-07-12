@@ -12,10 +12,9 @@ WheelCon::WheelCon(const rclcpp::NodeOptions& options) : rclcpp::Node("wheels_co
 
 void WheelCon::move_callback(const interface::msg::MoveMsg& msg) {
   std::vector<float> diff_speeds = omuni_controller(msg.direction, msg.velocity, msg.angular_v);
-  RCLCPP_INFO(this->get_logger(), "dir:%f vel:%f angle_v:%f", msg.direction, msg.velocity, msg.angular_v);
 
   std_msgs::msg::Float64 msg_FR, msg_FL, msg_BR, msg_BL;
-  double wheel_speed_par = 0.4;
+  double wheel_speed_par = 0.3;
   for (int i = 0; i < 4; ++i) {
     diff_speeds[i] = diff_speeds[i] * wheel_speed_par + pre_wheel_speeds[i] * (1.0 - wheel_speed_par);
     pre_wheel_speeds[i] = diff_speeds[i];

@@ -78,8 +78,20 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
 
   // ICPの実行
 
-  remove_outliers(robot_cloud, 0.1, 4, 100);                              // 大きなハズレ値の除去
+  if (robot_cloud.size() < pre_cloud_size * 0.5) {
+    RCLCPP_INFO(this->get_logger(), "skip");
+    return;
+  } else
+    pre_cloud_size = robot_cloud.size();
+
+  remove_outliers(robot_cloud, 0.15, 10, 150);                            // 大きなハズレ値の除去
   clean_cloud_sub_->publish(Eigen_to_cloud(robot_cloud, cloud_header_));  // 可視化（なくてもいい）
+
+  if (robot_cloud.size() < pre_clean_size * 0.3) {
+    RCLCPP_INFO(this->get_logger(), "skip");
+    return;
+  } else
+    pre_clean_size = robot_cloud.size();
 
   Eigen::Vector3d icp_result = do_icp(robot_cloud, robot_line_segs);
 
@@ -88,7 +100,7 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
   Eigen::Vector2d robot_pos_v(icp_result.x(), icp_result.y());
   Eigen::Vector2d pos_error = pre_robot_pos - robot_pos_v;
   pre_robot_pos = robot_pos_v;
-  if (pos_error.norm() < 4.0) {
+  if (pos_error.norm() < 3.0) {
     Eigen::Vector2d pos = robot_pos_v;
     Eigen::Vector2d new_pos = getR(robot_pos.z()) * pos;
     robot_pos.z() += icp_result.z();
@@ -122,7 +134,9 @@ void ICPNode::remove_outliers(std::vector<Eigen::Vector2d> &target_cloud, const 
     return;
   std::uniform_int_distribution<int> ID_dis(0, cloud_size - 1);
   std::vector<bool> inlierbools(cloud_size, false);
-  for (int line_num = 0; line_num < max_line_num; line_num++) {
+  int removed_num = 0;
+  int line_num = 0;
+  while (line_num < max_line_num && removed_num <= cloud_size * 0.8) {
     int best_inlier_count = 0;
     std::vector<int> best_inlierIDs;
     for (int i = 0; i < max_iterations; i++) {
@@ -143,7 +157,7 @@ void ICPNode::remove_outliers(std::vector<Eigen::Vector2d> &target_cloud, const 
           }
         }
         std::lock_guard<std::mutex> lock(mtx);
-        if (inlier_count > best_inlier_count && inlier_count > cloud_size / 8.0) {
+        if (inlier_count > best_inlier_count && inlier_count > cloud_size * 0.15) {
           best_inlier_count = inlier_count;
           best_inlierIDs = inlierIDs;
         }
@@ -155,6 +169,8 @@ void ICPNode::remove_outliers(std::vector<Eigen::Vector2d> &target_cloud, const 
     for (int i = 0; i < best_inlier_count; i++) {
       inlierbools[best_inlierIDs[i]] = true;
     }
+    removed_num += best_inlier_count;
+    line_num++;
   }
   std::vector<Eigen::Vector2d> clean_cloud;
   for (int i = 0; i < cloud_size; i++) {
@@ -169,12 +185,12 @@ void ICPNode::remove_outliers(std::vector<Eigen::Vector2d> &target_cloud, const 
 Eigen::Vector3d ICPNode::do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::vector<LineSeg> &line_segments) {
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> num_dis(-0.25, 0.25);
+  std::uniform_real_distribution<double> num_dis(-0.5, 0.5);
   std::uniform_real_distribution<double> angle_dis(-M_PI, M_PI);
 
   Eigen::Vector3d guess_par;
   double min_cost = std::numeric_limits<double>::max();
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 20; i++) {
     Eigen::Vector3d guess_guess_par(pre_robot_pos.x() + num_dis(gen), pre_robot_pos.y() + num_dis(gen), 0.0);  // 初期値
     threads.push_back(std::thread([this, &guess_guess_par, &point_cloud, &line_segments, &guess_par, &min_cost]() { this->ICP(guess_guess_par, point_cloud, line_segments, guess_par, min_cost); }));
   }
@@ -192,7 +208,7 @@ void ICPNode::ICP(Eigen::Vector3d default_par_init, std::vector<Eigen::Vector2d>
   Eigen::Vector3d delta_par;
   Eigen::VectorXd min_R;
 
-  for (int inter = 0; inter < 8; inter++) {
+  for (int inter = 0; inter < 10; inter++) {
     std::vector<int> min_line_IDs(real_points.size());
     std::vector<Eigen::Vector2d> guess_points = real_points;
     Eigen::VectorXd R;

@@ -30,8 +30,8 @@ class SetGoal : public rclcpp::Node {
   };
 
   PDgain ang_gain = {0.4, 0.1};
-  PDgain vel_gain = {0.45, 0.1};
-  PDgain dir_gain = {0.7, 0.4};
+  PDgain vel_gain = {0.55, 0.05};
+  PDgain dir_gain = {0.7, 0.3};
 
   bool auto_mode = false;
 

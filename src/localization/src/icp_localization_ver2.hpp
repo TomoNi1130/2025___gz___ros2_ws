@@ -57,6 +57,9 @@ class ICPNode : public rclcpp::Node {
       LineSeg(Eigen::Vector2d(6.300, 0.225 - 4.75), Eigen::Vector2d(0, -1), 0.225),
   };  // 地図上の線分
 
+  int pre_cloud_size = 0;
+  int pre_clean_size = 0;
+
   std::vector<Eigen::Vector2d> robot_cloud;  // ロボから見た点群
   Eigen::Vector3d robot_pos;                 // ロボットの姿勢//{x,y,theta}
   Eigen::Vector3d new_robot_pos;
