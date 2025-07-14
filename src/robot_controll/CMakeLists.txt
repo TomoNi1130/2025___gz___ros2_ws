@@ -22,7 +22,7 @@ find_package(visualization_msgs REQUIRED)
 find_package(interface REQUIRED)
 
 add_library(wheel_controll SHARED
-   src/wheels_controll.cpp)
+src/wheels_controll.cpp)
 
 ament_target_dependencies(wheel_controll
   rclcpp

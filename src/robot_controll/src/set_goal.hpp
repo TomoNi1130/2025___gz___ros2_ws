@@ -29,15 +29,15 @@ class SetGoal : public rclcpp::Node {
     double P, D;
   };
 
-  PDgain ang_gain = {0.4, 0.1};
-  PDgain vel_gain = {0.55, 0.05};
-  PDgain dir_gain = {0.7, 0.3};
+  PDgain ang_gain = {0.4, 0.3};
+  PDgain vel_gain = {0.45, 0.3};
+  PDgain dir_gain = {0.35, 0.3};
 
   bool auto_mode = false;
 
   double robot_yaw = 0;
-  double goal_yaw;
-  Eigen::Vector2d map_to_goal;
+  double goal_yaw = -M_PI * 0.5;
+  Eigen::Vector2d map_to_goal = {8.5, 0.7};
   Eigen::Vector2d map_to_robot;
 
   double pre_goal_dis = 0;

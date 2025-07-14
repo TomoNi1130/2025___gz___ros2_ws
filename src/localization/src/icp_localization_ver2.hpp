@@ -68,7 +68,6 @@ class ICPNode : public rclcpp::Node {
   Eigen::Vector2d pre_robot_pos;
 
   std::mutex mtx;
-  std::vector<std::thread> threads;
 
   std::string merged_topic_name;
   std::string merged_frame_id;

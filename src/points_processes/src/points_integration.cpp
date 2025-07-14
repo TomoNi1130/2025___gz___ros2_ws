@@ -31,9 +31,9 @@ void PointIntegration::scan_callback(const std::string &topic_name, sensor_msgs:
   auto tfed_points = std::make_shared<sensor_msgs::msg::PointCloud2>();
   try {
     projector_.transformLaserScanToPointCloud(merged_frame_id, *msg, *tfed_points, *tf_buffer_);
-
   } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(this->get_logger(), "Transform error: %s", ex.what());
+    return;
   }
   scans_[topic_name] = std::make_shared<sensor_msgs::msg::PointCloud2>(*tfed_points);
 }
