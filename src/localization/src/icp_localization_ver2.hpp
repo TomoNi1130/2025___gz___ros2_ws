@@ -7,6 +7,7 @@
 #include <thread>
 #include <vector>
 
+#include "geometry_msgs/msg/vector3.hpp"
 #include "pcl/impl/point_types.hpp"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
@@ -79,7 +80,7 @@ class ICPNode : public rclcpp::Node {
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr nearest_wall_dis_pub_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr nearest_wall_dir_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr nearest_wall_dir_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr clean_cloud_sub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
   rclcpp::TimerBase::SharedPtr timer_;

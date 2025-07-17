@@ -53,7 +53,7 @@ ICPNode::ICPNode(const rclcpp::NodeOptions &options) : Node("ICP_node", options)
 
   subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(merged_topic_name, rclcpp::SensorDataQoS{}, std::bind(&ICPNode::topic_callback, this, std::placeholders::_1));
   nearest_wall_dis_pub_ = this->create_publisher<std_msgs::msg::Float64>("distance_to_wall", 10);
-  nearest_wall_dir_pub_ = this->create_publisher<std_msgs::msg::Float64>("directry_of_wall", 10);
+  nearest_wall_dir_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("norm_v_of_wall", 10);
   clean_cloud_sub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("clean_cloud", 10);
   marker_print = this->create_publisher<visualization_msgs::msg::Marker>("lines_position", 10);
 
@@ -80,7 +80,7 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
 
   // ICPの実行
 
-  remove_outliers(robot_cloud, 0.1, 5, 150);                              // 大きなハズレ値の除去
+  remove_outliers(robot_cloud, 0.1, 5, 100);                              // 大きなハズレ値の除去
   clean_cloud_sub_->publish(Eigen_to_cloud(robot_cloud, cloud_header_));  // 可視化（なくてもいい）
 
   Eigen::Vector3d icp_result = do_icp(robot_cloud, robot_line_segs);
@@ -119,9 +119,16 @@ void ICPNode::topic_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg_
       nearest_line = map_line_segs[i];
     }
   }
-  std_msgs::msg::Float64 msg1, msg2;
+  Eigen::Vector2d pp = robot_pos - nearest_line.pos;
+  double t = nearest_line.dir.normalized().dot(pp);
+  Eigen::Vector2d rtl = (nearest_line.dir.normalized() * t + nearest_line.pos) - robot_pos;  // robot to wall
+  Eigen::Vector2d result = getR(-new_robot_pos.z()) * rtl;
+  std_msgs::msg::Float64 msg1;
   msg1.data = small_dis;
-  msg2.data = atan2(nearest_line.dir.y(), nearest_line.dir.x());
+  geometry_msgs::msg::Vector3 msg2;
+  msg2.x = result.x();
+  msg2.y = result.y();
+  msg2.z = 0.0;
   nearest_wall_dis_pub_->publish(msg1);
   nearest_wall_dir_pub_->publish(msg2);
 }
@@ -227,7 +234,7 @@ Eigen::Vector3d ICPNode::do_icp(std::vector<Eigen::Vector2d> &point_cloud, std::
     }
   };
 
-  for (int i = 0; i < 15; i++) {
+  for (int i = 0; i < 10; i++) {
     Eigen::Vector3d init_guess(pre_robot_pos.x() + num_dis(gen), pre_robot_pos.y() + num_dis(gen), 0.0);
     threads.emplace_back(std::thread(ICPfunc, std::ref(init_guess)));
   }

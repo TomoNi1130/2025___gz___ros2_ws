@@ -27,12 +27,24 @@ SetGoal::SetGoal(const rclcpp::NodeOptions& options) : rclcpp::Node("set_goal_no
 
   subscription_ = this->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&SetGoal::topic_callback, this, std::placeholders::_1));
   goal_pos_subscription_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("goal_pose", 10, std::bind(&SetGoal::goal_pos_callback, this, std::placeholders::_1));
+  wall_dis_pub_ = this->create_subscription<std_msgs::msg::Float64>("distance_to_wall", 10, std::bind(&SetGoal::dis_callback, this, std::placeholders::_1));
+  wall_norm_pub_ = this->create_subscription<geometry_msgs::msg::Vector3>("norm_v_of_wall", 10, std::bind(&SetGoal::dir_callback, this, std::placeholders::_1));
   move_nums_pub_ = this->create_publisher<interface::msg::MoveMsg>("move_par", 10);
   marker_print = this->create_publisher<visualization_msgs::msg::Marker>("move_marker", 10);
   timer_1 = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&SetGoal::send_goal, this));
   timer_2 = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&SetGoal::get_tf, this));
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+}
+
+void SetGoal::dis_callback(const std_msgs::msg::Float64& msg) {
+  nearest_wall_distance = msg.data;
+}
+
+void SetGoal::dir_callback(const geometry_msgs::msg::Vector3& msg) {
+  nearest_wall_norm.x() = msg.x;
+  nearest_wall_norm.y() = msg.y;
+  nearest_wall_norm = -nearest_wall_norm.normalized();
 }
 
 void SetGoal::topic_callback(const sensor_msgs::msg::Joy& msg) {
@@ -85,11 +97,20 @@ void SetGoal::send_goal() {
     double deriv_vel = (goal_dis - pre_goal_dis) / 0.1;
     double output_vel = vel_gain.P * goal_dis + vel_gain.D * deriv_vel;
     pre_goal_dis = goal_dis;
+    // target_power = std::min(nearest_wall_distance, 1.0);
     target_power = std::min(output_vel, 1.0);
   }
   interface::msg::MoveMsg send_data;
+  Eigen::Vector2d direction, output_v(std::cos(target_dir), std::sin(target_dir));
+  if (nearest_wall_distance < 2.0) {
+    direction = (output_v + nearest_wall_norm * (1.0 - nearest_wall_distance / 2.0) * 0.65).normalized();
+  } else {
+    direction = output_v;
+  }
+  target_dir = atan2(direction.y(), direction.x());
   send_data.direction = target_dir;
   send_data.velocity = target_power;
+  // send_data.velocity = 0;
   send_data.angular_v = target_roat;
   move_nums_pub_->publish(send_data);
 }

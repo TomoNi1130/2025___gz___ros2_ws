@@ -7,6 +7,7 @@
 #include "interface/msg/move_msg.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
+#include "std_msgs/msg/float64.hpp"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_ros/buffer.h"
@@ -21,6 +22,8 @@ class SetGoal : public rclcpp::Node {
 
  private:
   void topic_callback(const sensor_msgs::msg::Joy& msg);
+  void dis_callback(const std_msgs::msg::Float64& msg);
+  void dir_callback(const geometry_msgs::msg::Vector3& msg);
   void goal_pos_callback(const geometry_msgs::msg::PoseStamped& msg);
   void send_goal();
   void get_tf();
@@ -29,9 +32,9 @@ class SetGoal : public rclcpp::Node {
     double P, D;
   };
 
-  PDgain ang_gain = {0.4, 0.3};
-  PDgain vel_gain = {0.45, 0.3};
-  PDgain dir_gain = {0.35, 0.35};
+  PDgain ang_gain = {0.3, 0.07};
+  PDgain vel_gain = {0.45, 0.15};
+  PDgain dir_gain = {0.30, 0.20};
 
   bool auto_mode = false;
 
@@ -49,6 +52,9 @@ class SetGoal : public rclcpp::Node {
   double target_roat;
   double target_power;
 
+  Eigen::Vector2d nearest_wall_norm;
+  double nearest_wall_distance;
+
   std::string robot_frame_id_;
   std::string odom_frame_id_;
   std::string map_frame_id_;
@@ -57,6 +63,8 @@ class SetGoal : public rclcpp::Node {
 
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr subscription_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pos_subscription_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr wall_dis_pub_;
+  rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr wall_norm_pub_;
   rclcpp::Publisher<interface::msg::MoveMsg>::SharedPtr move_nums_pub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
   rclcpp::TimerBase::SharedPtr timer_1;
