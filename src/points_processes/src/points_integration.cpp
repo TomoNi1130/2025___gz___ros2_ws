@@ -20,7 +20,7 @@ PointIntegration::PointIntegration(const rclcpp::NodeOptions &options) : Node("p
   callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   rclcpp::SubscriptionOptions sub_options;
   sub_options.callback_group = callback_group_;
-  for (const auto &topic : scan_topic_names) {
+  for (const std::string &topic : scan_topic_names) {
     auto callback = [this, topic](sensor_msgs::msg::LaserScan::ConstSharedPtr msg) { scan_callback(topic, msg); };
     auto subscription = this->create_subscription<sensor_msgs::msg::LaserScan>(topic, rclcpp::SensorDataQoS{}, std::move(callback), sub_options);
     subscriptions_.push_back(subscription);

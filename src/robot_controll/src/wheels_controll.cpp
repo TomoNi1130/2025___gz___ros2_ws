@@ -35,7 +35,7 @@ std::vector<float> WheelCon::omuni_controller(const float& direction, const floa
   float tilt = 60;
   double theta[4] = {1.0 / 4.0 * M_PI, 3.0 / 4.0 * M_PI, -3.0 / 4.0 * M_PI, -1.0 / 4.0 * M_PI};
   for (int i = 0; i < 4; ++i) {
-    return_v.push_back(velocity * cos(-direction - M_PI / 2.0 + theta[i]) * tilt + tilt / 10.0 * -anglar_v);
+    return_v.push_back(velocity * cos(-direction - M_PI / 2.0 + theta[i]) * tilt + tilt / 12.0 * -anglar_v);
   }
   return return_v;
 }

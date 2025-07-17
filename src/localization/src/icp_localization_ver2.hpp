@@ -28,6 +28,7 @@ struct LineSeg {
   double length;
   LineSeg(const Eigen::Vector2d &p, const Eigen::Vector2d &d, double l)
       : pos(p), dir(d), length(l) {}
+  LineSeg() {}
   double distance_to(const Eigen::Vector2d &p);
   LineSeg transform(const Eigen::Vector3d &par);
 };
@@ -77,7 +78,8 @@ class ICPNode : public rclcpp::Node {
   std_msgs::msg::Header cloud_header_;
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr robot_yaw_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr nearest_wall_dis_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr nearest_wall_dir_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr clean_cloud_sub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
   rclcpp::TimerBase::SharedPtr timer_;
