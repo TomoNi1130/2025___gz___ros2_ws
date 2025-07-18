@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/vector3.hpp"
 #include "interface/msg/move_msg.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
@@ -32,8 +33,8 @@ class SetGoal : public rclcpp::Node {
     double P, D;
   };
 
-  PDgain ang_gain = {0.3, 0.07};
-  PDgain vel_gain = {0.45, 0.15};
+  PDgain ang_gain = {0.5, 0.12};
+  PDgain vel_gain = {0.65, 0.15};
   PDgain dir_gain = {0.30, 0.20};
 
   bool auto_mode = false;

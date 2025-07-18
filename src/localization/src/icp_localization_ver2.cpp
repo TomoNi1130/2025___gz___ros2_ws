@@ -179,7 +179,6 @@ void ICPNode::remove_outliers(std::vector<Eigen::Vector2d> &target_cloud, const 
             sun_error += error;
           }
         }
-        // double cost = double(inlier_count);  // コスト関数
         double cost = (sun_error / double(inlier_count));  // コスト関数
         std::lock_guard<std::mutex> lock(mtx);
         if (cost < best_cost && inlier_count >= cloud_size * 0.1) {

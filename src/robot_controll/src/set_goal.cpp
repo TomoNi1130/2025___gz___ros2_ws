@@ -100,18 +100,21 @@ void SetGoal::send_goal() {
     // target_power = std::min(nearest_wall_distance, 1.0);
     target_power = std::min(output_vel, 1.0);
   }
+
   interface::msg::MoveMsg send_data;
   Eigen::Vector2d direction, output_v(std::cos(target_dir), std::sin(target_dir));
-  if (nearest_wall_distance < 2.0) {
-    direction = (output_v + nearest_wall_norm * (1.0 - nearest_wall_distance / 2.0) * 0.65).normalized();
+
+  if (nearest_wall_distance < 3.0) {
+    direction = (output_v + nearest_wall_norm * (1.0 - nearest_wall_distance / 3.0) * 0.5).normalized();
   } else {
     direction = output_v;
   }
+
   target_dir = atan2(direction.y(), direction.x());
   send_data.direction = target_dir;
   send_data.velocity = target_power;
-  // send_data.velocity = 0;
   send_data.angular_v = target_roat;
+
   move_nums_pub_->publish(send_data);
 }
 
