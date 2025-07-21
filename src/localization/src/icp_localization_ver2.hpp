@@ -57,6 +57,9 @@ class ICPNode : public rclcpp::Node {
       LineSeg(Eigen::Vector2d(10.000, 5.250 - 4.75), Eigen::Vector2d(0, -1), 5.025),
       LineSeg(Eigen::Vector2d(6.300, 0.225 - 4.75), Eigen::Vector2d(1, 0), 3.700),
       LineSeg(Eigen::Vector2d(6.300, 0.225 - 4.75), Eigen::Vector2d(0, -1), 0.225),
+      LineSeg(Eigen::Vector2d(-0.500, -5.250 - 4.75), Eigen::Vector2d(1, 0), 10.500),
+      LineSeg(Eigen::Vector2d(10.000, -5.250 - 4.75), Eigen::Vector2d(0, 1), 5.025),
+      LineSeg(Eigen::Vector2d(-0.500, 0.0 - 4.75), Eigen::Vector2d(0, -1), 5.250),
   };  // 地図上の線分
 
   int pre_cloud_size = 0;
@@ -82,6 +85,7 @@ class ICPNode : public rclcpp::Node {
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr nearest_wall_dis_pub_;
   rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr nearest_wall_dir_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr clean_cloud_sub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr unclean_cloud_sub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_print;
   rclcpp::TimerBase::SharedPtr timer_;
 
